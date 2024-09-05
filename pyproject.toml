@@ -1,0 +1,37 @@
+[project]
+name = "acapy-did-web"
+version = "0.1.0"
+description = "ACA-Py DID Web support"
+authors = [
+    {name = "Daniel Bluhm", email = "dbluhm@pm.me"},
+]
+dependencies = [
+]
+requires-python = ">=3.12"
+readme = "README.md"
+license = {text = "Apache-2.0"}
+
+[project.optional-dependencies]
+acapy = [
+    "aries-cloudagent>=1.0.0",
+]
+did_web_server = [
+    "fastapi>=0.112.2",
+]
+demo = [
+    "acapy-controller>=0.2.0",
+]
+
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
+
+[tool.pdm]
+distribution = true
+
+[tool.pdm.dev-dependencies]
+dev = [
+    "fastapi[standard]>=0.112.2",
+    "ruff>=0.6.3",
+]
