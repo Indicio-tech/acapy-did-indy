@@ -5,20 +5,21 @@ import json
 from os import getenv
 
 from acapy_controller import Controller
+from acapy_controller.protocols import indy_anoncred_onboard
 
 AGENT = getenv("AGENT", "http://localhost:3001")
 
 
 async def main():
     async with Controller(AGENT) as controller:
-        result = await controller.post(
-            "/did/web/create", json={"issue": True, "name": "test"}
-        )
-        did = result["did"]
+        did = await indy_anoncred_onboard(controller)
+        did_indy_result = await controller.post("/did/indy/create")
+        did_indy = did_indy_result["did"]
+        vm = did_indy + "#assert"
         credential = {
             "credential": {
                 "@context": [
-                    "https://www.w3.org/2018/credentials/v2",
+                    "https://www.w3.org/2018/credentials/v1",
                     "https://purl.imsglobal.org/spec/ob/v3p0/context-3.0.3.json",
                     "https://w3id.org/security/suites/ed25519-2020/v1",
                 ],
@@ -26,15 +27,14 @@ async def main():
                 "id": "urn:uuid:8f0df0cc-b5ab-48fa-8bc8-1bac515008cb",
                 "type": ["VerifiableCredential", "OpenBadgeCredential"],
                 "issuer": {
-                    "type": "Profile",
-                    "id": did,
+                    "type": ["Profile"],
+                    "id": did_indy,
                     "name": "JFF x vc-edu PlugFest 3 Interoperability",
                 },
                 "issuanceDate": "2024-08-21T18:20:23Z",
-                "validFrom": "2024-08-21T18:20:23Z",
                 "credentialSubject": {
                     "id": "did:key:z6MktsCtkJCST2NUZfa3SQSm4DL89YmFEdJmt37Vvkw8aH19",
-                    "type": "AchievementSubject",
+                    "type": ["AchievementSubject"],
                     "achievement": {
                         "name": "JFF x vc-edu PlugFest 3 Interoperability",
                         "description": "This wallet supports the use of W3C Verifiable Credentials and has demonstrated interoperability during the presentation request workflow during JFF x VC-EDU PlugFest 3.",
@@ -57,7 +57,7 @@ async def main():
                 "domain": "example.com",
                 "proofPurpose": "assertionMethod",
                 "proofType": "Ed25519Signature2020",
-                "verificationMethod": did + "#key-0",
+                "verificationMethod": vm,
             },
         }
         result = await controller.post("/vc/credentials/issue", json=credential)

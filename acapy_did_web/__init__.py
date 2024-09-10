@@ -10,11 +10,19 @@ WEB = DIDMethod(
     rotation=True,
     holder_defined_did=HolderDefinedDid.REQUIRED,
 )
+INDY = DIDMethod(
+    name="indy",
+    key_types=[ED25519],
+    rotation=True,
+    holder_defined_did=HolderDefinedDid.NO,
+)
 
 
 async def setup(context: InjectionContext):
     methods = context.inject(DIDMethods)
     methods.register(WEB)
+    methods.register(INDY)
+
     config = context.settings.for_plugin("acapy_did_web")
     server_base_url = config.get("server_base_url") or getenv("DID_WEB_SERVER_URL")
     if not server_base_url:
