@@ -1,7 +1,7 @@
 [project]
-name = "acapy-did-web"
+name = "acapy-did-indy"
 version = "0.1.0"
-description = "ACA-Py DID Web support"
+description = "ACA-Py DID Indy support prototype"
 authors = [
     {name = "Daniel Bluhm", email = "dbluhm@pm.me"},
 ]
