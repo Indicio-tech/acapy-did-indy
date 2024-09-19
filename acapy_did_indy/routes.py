@@ -12,7 +12,7 @@ from aries_cloudagent.messaging.models.openapi import OpenAPISchema
 from aries_cloudagent.utils.multiformats import multibase, multicodec
 from aries_cloudagent.wallet.base import BaseWallet
 from aries_cloudagent.wallet.did_info import DIDInfo
-from aries_cloudagent.wallet.did_method import SOV
+from aries_cloudagent.wallet.error import WalletNotFoundError
 from aries_cloudagent.wallet.key_type import ED25519
 import base58
 from marshmallow import fields
@@ -152,7 +152,7 @@ async def create_did_indy(request: web.Request):
     """Route for creating a did:indy."""
 
     context: AdminRequestContext = request["context"]
-    config = context.settings.for_plugin("acapy_did_web")
+    config = context.settings.for_plugin("acapy_did_indy")
     indy_namespace = config.get("indy_namespace") or getenv("INDY_NAMESPACE")
 
     async with context.session() as session:
@@ -161,6 +161,13 @@ async def create_did_indy(request: web.Request):
         if not public_did:
             raise web.HTTPBadRequest(reason="Public DID must be set")
         did = f"did:indy:{indy_namespace}:{public_did.did}"
+
+        # Exists?
+        try:
+            previous = await wallet.get_local_did(did)
+            return web.json_response({"did": previous.did})
+        except WalletNotFoundError:
+            pass
 
         # Enable issuance
         kid = f"{did}#assert"
@@ -183,7 +190,9 @@ async def create_did_indy(request: web.Request):
             id=kid, controller=did, public_key_multibase=public_key_multibase
         )
         doc_content = {
-            "verificationMethod": [vm.serialize()], "assertionMethod": [vm.id]
+            "@context": ["https://w3id.org/security/suites/ed25519-2020/v1"],
+            "verificationMethod": [vm.serialize()],
+            "assertionMethod": [vm.id]
         }
         nym_txn = ledger.build_nym_request(
             public_did.did, public_did.did, diddoc_content=json.dumps(doc_content)

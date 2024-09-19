@@ -1,21 +1,21 @@
-version: '3'
-
+version: "3"
 services:
 
-  agent:
-    image: acapy-did-web
-    build:
+  issuer:
+    image: acapy-did-indy
+    build: 
+      dockerfile: Dockerfile
       context: ..
     ports:
-      - "3000:3000"
       - "3001:3001"
     volumes:
-      - ./entrypoint.sh:/entrypoint.sh:ro,z
+      - ../acapy_did_indy:/usr/src/app/acapy_did_indy:z
     environment:
       RUST_LOG: warn
-      TUNNEL_ENDPOINT: http://ngrok:4040
-    entrypoint: >
-      /bin/sh -c '/entrypoint.sh aca-py "$$@"' --
+      OID4VCI_HOST: 0.0.0.0
+      OID4VCI_PORT: 8081
+      OID4VCI_ENDPOINT: "http://issuer:8081"
+      TUNNEL_ENDPOINT: "http://ngrok:4040"
     command: >
       start
         --inbound-transport http 0.0.0.0 3000
@@ -23,12 +23,9 @@ services:
         --endpoint http://issuer:3000
         --admin 0.0.0.0 3001
         --admin-insecure-mode
-        --webhook-url http://demo-app:3000/webhook
-        --webhook-url http://webhook-listener:8080
         --genesis-url https://raw.githubusercontent.com/Indicio-tech/indicio-network/main/genesis_files/pool_transactions_testnet_genesis
         --wallet-type askar
         --emit-new-didcomm-prefix
-        --wallet-storage-type default
         --wallet-name issuer
         --wallet-key insecure
         --auto-provision
@@ -43,43 +40,37 @@ services:
       interval: 7s
       timeout: 5s
       retries: 5
-    depends_on:
-      ngrok:
-        condition: service_healthy
-      didweb:
-        condition: service_started
 
-  ngrok:
-    image: ngrok/ngrok
-    restart: unless-stopped
-    hostname: ngrok
+  credo:
+    image: credo-json-rpc
+    build: credo
     ports:
-      - "4040:4040"
+      - "3020:3000"
     environment:
-      - NGROK_AUTHTOKEN=${NGROK_AUTHTOKEN}
-    command: ["http", "didweb:8000"]
+      AFJ_MESSAGE_PORT: 3001
+      AFJ_ENDPOINT: "http://credo:3001"
+    volumes:
+      - ./credo/index.ts:/usr/src/app/index.ts:z
     healthcheck:
-      test: /bin/bash -c "</dev/tcp/ngrok/4040"
+      test: nc -z 0.0.0.0 3000
+      start_period: 1s
       interval: 3s
-      timeout: 3s
-      start_period: 5s
+      timeout: 5s
       retries: 5
 
-  didweb:
-    image: did-web-server
+  tests:
+    image: acapy-did-iny-test-runner
     build:
-      context: ..
-      dockerfile: Dockerfile.server
-
-  demo:
-    image: acapy-did-web-demo
-    build:
-      context: ..
-      dockerfile: demo/Dockerfile
+      context: .
+    volumes:
+      - ./tests:/usr/src/app/tests:z
     environment:
-      AGENT: http://agent:3001
+      ISSUER_ADMIN_ENDPOINT: http://issuer:3001
+      CREDO_HOST: credo
+      CREDO_PORT: 3000
+    command: -m interop
     depends_on:
-      agent:
+      issuer:
         condition: service_healthy
-      didweb:
-        condition: service_started
+      credo:
+        condition: service_healthy

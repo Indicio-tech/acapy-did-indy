@@ -1,8 +1,10 @@
-from os import getenv
 from aiohttp import ClientSession
 from aries_cloudagent.config.injection_context import InjectionContext
 from aries_cloudagent.wallet.did_method import DIDMethod, DIDMethods, HolderDefinedDid
 from aries_cloudagent.wallet.key_type import ED25519
+from aries_cloudagent.resolver.did_resolver import DIDResolver
+
+from .resolver import IndyResolver
 
 WEB = DIDMethod(
     name="web",
@@ -23,14 +25,19 @@ async def setup(context: InjectionContext):
     methods.register(WEB)
     methods.register(INDY)
 
-    config = context.settings.for_plugin("acapy_did_web")
-    server_base_url = config.get("server_base_url") or getenv("DID_WEB_SERVER_URL")
-    if not server_base_url:
-        raise ValueError("Failed to load did:web server base url")
+    indy_resolver = IndyResolver()
+    await indy_resolver.setup(context)
+    resolver = context.inject(DIDResolver)
+    resolver.register_resolver(indy_resolver)
 
-    context.injector.bind_instance(
-        DidWebServerClient, DidWebServerClient(server_base_url)
-    )
+    # config = context.settings.for_plugin("acapy_did_web")
+    # server_base_url = config.get("server_base_url") or getenv("DID_WEB_SERVER_URL")
+    # if not server_base_url:
+    #     raise ValueError("Failed to load did:web server base url")
+
+    # context.injector.bind_instance(
+    #     DidWebServerClient, DidWebServerClient(server_base_url)
+    # )
 
 
 class DidWebServerClientError(Exception):
