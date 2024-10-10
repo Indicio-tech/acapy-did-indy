@@ -13,7 +13,13 @@ AGENT = getenv("AGENT", "http://localhost:3001")
 async def main():
     async with Controller(AGENT) as controller:
         did = await indy_anoncred_onboard(controller)
-        did_indy_result = await controller.post("/did/indy/create")
+        did_indy_result = await controller.post(
+            "/did/indy/from-nym",
+            json={
+                "ldp_vc": True,
+                "didcomm": True,
+            }
+        )
         did_indy = did_indy_result["did"]
         vm = did_indy + "#assert"
         credential = {
