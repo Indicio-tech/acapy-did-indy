@@ -165,14 +165,15 @@ class IndyRegistrar:
                 public_did.did, public_did.did, diddoc_content=json.dumps(doc_content)
             )
             base_ledger = session.inject(BaseLedger)
-            await base_ledger.txn_submit(nym_txn, sign=True, sign_did=public_did)
-            attrib_txn = ledger.build_attrib_request(
-                public_did.did,
-                public_did.did,
-                xhash=None,
-                raw=json.dumps({"diddocContent": doc_content}),
-                enc=None,
-            )
-            await base_ledger.txn_submit(attrib_txn, sign=True, sign_did=public_did)
+            async with base_ledger:
+                await base_ledger.txn_submit(nym_txn, sign=True, sign_did=public_did)
+                attrib_txn = ledger.build_attrib_request(
+                    public_did.did,
+                    public_did.did,
+                    xhash=None,
+                    raw=json.dumps({"diddocContent": doc_content}),
+                    enc=None,
+                )
+                await base_ledger.txn_submit(attrib_txn, sign=True, sign_did=public_did)
 
             return did_info
