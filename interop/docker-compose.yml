@@ -68,7 +68,6 @@ services:
       ISSUER_ADMIN_ENDPOINT: http://issuer:3001
       CREDO_HOST: credo
       CREDO_PORT: 3000
-    command: -m interop
     depends_on:
       issuer:
         condition: service_healthy

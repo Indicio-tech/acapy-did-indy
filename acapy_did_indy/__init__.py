@@ -1,7 +1,7 @@
 """did:indy support."""
-from aries_cloudagent.config.injection_context import InjectionContext
-from aries_cloudagent.wallet.did_method import DIDMethods
-from aries_cloudagent.resolver.did_resolver import DIDResolver
+from acapy_agent.config.injection_context import InjectionContext
+from acapy_agent.wallet.did_method import DIDMethods
+from acapy_agent.resolver.did_resolver import DIDResolver
 
 from .did import INDY
 from .registrar import IndyRegistrar

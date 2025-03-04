@@ -1,6 +1,6 @@
 """Define DID Methods."""
-from aries_cloudagent.wallet.did_method import DIDMethod, HolderDefinedDid
-from aries_cloudagent.wallet.key_type import ED25519
+from acapy_agent.wallet.did_method import DIDMethod, HolderDefinedDid
+from acapy_agent.wallet.key_type import ED25519
 
 INDY = DIDMethod(
     name="indy",

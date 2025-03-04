@@ -4,7 +4,7 @@ RUN apt-get update && apt-get install ncat -y && apt-get clean
 
 COPY package*.json ./
 COPY patches/ patches/
-RUN npm install
+RUN npm ci
 COPY . .
 
 EXPOSE 3000

@@ -2,12 +2,12 @@
 
 from aiohttp import web
 from aiohttp_apispec import docs, request_schema, response_schema
-from aries_cloudagent.admin.request_context import AdminRequestContext
-from aries_cloudagent.messaging.models.openapi import OpenAPISchema
-from aries_cloudagent.protocols.coordinate_mediation.v1_0.route_manager import (
+from acapy_agent.admin.request_context import AdminRequestContext
+from acapy_agent.messaging.models.openapi import OpenAPISchema
+from acapy_agent.protocols.coordinate_mediation.v1_0.route_manager import (
     RouteManager,
 )
-from aries_cloudagent.storage.base import StorageNotFoundError
+from acapy_agent.storage.base import StorageNotFoundError
 from marshmallow import fields
 
 from .registrar import IndyRegistrar

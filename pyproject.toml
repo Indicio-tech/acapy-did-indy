@@ -13,7 +13,7 @@ license = {text = "Apache-2.0"}
 
 [project.optional-dependencies]
 acapy = [
-    "aries-cloudagent[askar]>=1.0.0",
+    "acapy-agent>=1.2.2",
 ]
 did_web_server = [
     "fastapi>=0.112.2",

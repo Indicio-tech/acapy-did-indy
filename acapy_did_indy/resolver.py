@@ -2,11 +2,11 @@
 
 import re
 from typing import Dict, Optional, Pattern, Sequence, Text
-from aries_cloudagent.config.injection_context import InjectionContext
-from aries_cloudagent.config.ledger import fetch_genesis_transactions
-from aries_cloudagent.core.profile import Profile
-from aries_cloudagent.messaging.valid import B58
-from aries_cloudagent.resolver.base import BaseDIDResolver, DIDNotFound, ResolverError, ResolverType
+from acapy_agent.config.injection_context import InjectionContext
+from acapy_agent.config.ledger import fetch_genesis_transactions
+from acapy_agent.core.profile import Profile
+from acapy_agent.messaging.valid import B58
+from acapy_agent.resolver.base import BaseDIDResolver, DIDNotFound, ResolverError, ResolverType
 from indy_vdr import Resolver, VdrError, VdrErrorCode, open_pool
 
 
