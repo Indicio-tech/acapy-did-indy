@@ -4,21 +4,21 @@ import json
 from os import getenv
 from typing import List
 
-from aries_cloudagent.config.settings import Settings
-from aries_cloudagent.core.error import BaseError
-from aries_cloudagent.core.profile import Profile
-from aries_cloudagent.ledger.base import BaseLedger
-from aries_cloudagent.protocols.coordinate_mediation.v1_0.models.mediation_record import (
+from acapy_agent.config.settings import Settings
+from acapy_agent.core.error import BaseError
+from acapy_agent.core.profile import Profile
+from acapy_agent.ledger.base import BaseLedger
+from acapy_agent.protocols.coordinate_mediation.v1_0.models.mediation_record import (
     MediationRecord,
 )
-from aries_cloudagent.protocols.coordinate_mediation.v1_0.route_manager import (
+from acapy_agent.protocols.coordinate_mediation.v1_0.route_manager import (
     RouteManager,
 )
-from aries_cloudagent.utils.multiformats import multibase, multicodec
-from aries_cloudagent.wallet.base import BaseWallet
-from aries_cloudagent.wallet.did_info import DIDInfo
-from aries_cloudagent.wallet.error import WalletNotFoundError
-from aries_cloudagent.wallet.key_type import ED25519
+from acapy_agent.utils.multiformats import multibase, multicodec
+from acapy_agent.wallet.base import BaseWallet
+from acapy_agent.wallet.did_info import DIDInfo
+from acapy_agent.wallet.error import WalletNotFoundError
+from acapy_agent.wallet.key_type import ED25519
 import base58
 from indy_vdr import ledger
 from pydid.verification_method import Ed25519VerificationKey2020

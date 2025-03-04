@@ -29,7 +29,13 @@ async def sov_did(controller: Controller):
 
 @pytest_asyncio.fixture
 async def indy_did(controller: Controller, sov_did: str):
-    did_indy_result = await controller.post("/did/indy/from-nym")
+    did_indy_result = await controller.post(
+        "/did/indy/from-nym",
+        json={
+            "ldp_vc": True,
+            "didcomm": True,
+        },
+    )
     yield did_indy_result["did"]
 
 
