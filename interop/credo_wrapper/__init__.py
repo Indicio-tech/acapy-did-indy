@@ -67,3 +67,9 @@ class CredoWrapper:
         return await self.client.request(
             "validatePresentationDefinition", definition=definition
         )
+
+    async def credentials_accept_raw(self, credential: dict):
+        """Accept a raw credential for testing verification."""
+        return await self.client.request(
+            "credentials.acceptRaw", credential=credential
+        )

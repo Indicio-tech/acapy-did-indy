@@ -140,7 +140,10 @@ class IndyRegistrar:
                     id=kid, controller=did, public_key_multibase=public_key_multibase
                 )
                 doc_content = {
-                    "@context": ["https://w3id.org/security/suites/ed25519-2020/v1"],
+                    "@context": [
+                        "https://www.w3.org/ns/did/v1",
+                        "https://w3id.org/security/suites/ed25519-2020/v1",
+                    ],
                     "verificationMethod": [vm.serialize()],
                     "assertionMethod": [vm.id],
                 }

@@ -28,7 +28,8 @@ import {
   AgentContext,
   DidsApi,
   CredoError,
-  JsonTransformer
+  JsonTransformer,
+  W3cJsonLdVerifiableCredential
 } from '@credo-ts/core';
 import {
   IndyVdrIndyDidResolver,
@@ -196,6 +197,17 @@ proxy.rpc.addMethod(
     console.log(definition)
     console.log(JSON.stringify((validatePDv1 as any).errors, null, 2))
     return result
+  }
+)
+
+proxy.rpc.addMethod(
+  'credentials.acceptRaw',
+  async ({credential}: {credential: any}) => {
+    const agent = getAgent()
+    await agent.w3cCredentials.verifyCredential({
+      credential: W3cJsonLdVerifiableCredential.fromJson(credential),
+      verifyCredentialStatus: false,
+    })
   }
 )
 
