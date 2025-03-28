@@ -5,8 +5,8 @@ from acapy_controller.controller import Controller
 from acapy_controller.models import ResolutionResult
 import pytest
 import pytest_asyncio
-from aiohttp import ClientSession
 from didkit import wrapper
+from didkit.contexts import CONTEXTS
 
 @pytest_asyncio.fixture
 async def indy_did_doc(controller: Controller, indy_did: str):
@@ -21,16 +21,19 @@ async def indy_did_doc(controller: Controller, indy_did: str):
 @pytest_asyncio.fixture
 async def contexts():
     """Retrieve JSON-LD Contexts."""
-    contexts = (
-        "https://www.w3.org/2018/credentials/v1",
-        "https://purl.imsglobal.org/spec/ob/v3p0/context-3.0.3.json",
-    )
-    context_map = {}
-    async with ClientSession() as session:
-        for context in contexts:
-            async with session.get(context) as resp:
-                context_map[context] = await resp.json()
-    return context_map
+    return CONTEXTS
+
+    # If we need to download any additional ones for future testing
+    # contexts = (
+    #     "https://www.w3.org/2018/credentials/v1",
+    #     "https://purl.imsglobal.org/spec/ob/v3p0/context-3.0.3.json",
+    # )
+    # context_map = {}
+    # async with ClientSession() as session:
+    #     for context in contexts:
+    #         async with session.get(context) as resp:
+    #             context_map[context] = await resp.json()
+    # return context_map
 
 
 @pytest_asyncio.fixture
