@@ -189,4 +189,4 @@ if __name__ == "__main__":
             ],
         }
 
-    print(verify_credential(json.dumps(credential), "{}", resolver, CONTEXTS))
+    print(verify_credential(credential, {}, resolver, CONTEXTS))

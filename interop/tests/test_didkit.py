@@ -1,6 +1,7 @@
 """Test DIDKit verification of a credential value."""
 
 import json
+from typing import Callable
 from acapy_controller.controller import Controller
 from acapy_controller.models import ResolutionResult
 import pytest
@@ -16,6 +17,14 @@ async def indy_did_doc(controller: Controller, indy_did: str):
         response=ResolutionResult
     )
     return result.did_document
+
+@pytest.fixture
+def resolver(indy_did_doc: dict):
+    """Return resolver."""
+    def _resolver(did: str) -> dict:
+        return indy_did_doc
+
+    return _resolver
 
 
 @pytest_asyncio.fixture
@@ -90,11 +99,111 @@ async def credential(controller: Controller, indy_did: str):
 
 
 @pytest.mark.asyncio
-async def test_didkit_verify(credential: dict, indy_did_doc: dict, contexts: dict):
+async def test_didkit_verify(credential: dict, resolver: Callable, contexts: dict):
     """Test didkit verification of a credential."""
-    def resolver(did: str) -> dict:
-        return indy_did_doc
-
     result = wrapper.verify_credential(credential, {}, resolver, contexts)
+    assert not result["warnings"]
+    assert not result["errors"]
+
+
+@pytest.mark.asyncio
+async def test_verify_tampered(credential: dict, resolver: Callable, contexts: dict):
+    """Tamper with credential and see what happens"""
+    credential["credentialSubject"]["achievement"]["name"] = "Doctor of Something"
+    print(json.dumps(credential, indent=2))
+    result = wrapper.verify_credential(credential, {}, resolver, contexts)
+    assert not result["warnings"]
+    assert not result["errors"]
+
+
+@pytest.mark.asyncio
+async def test_verify_known_bad(contexts: dict):
+    credential = {
+        "@context": [
+            "https://www.w3.org/2018/credentials/v1",
+            "https://purl.imsglobal.org/spec/ob/v3p0/context-3.0.3.json",
+            "https://www.w3.org/ns/credentials/status/v1",
+            "https://w3id.org/security/suites/ed25519-2020/v1",
+        ],
+        "id": "urn:uuid:efefd4ff-8ff3-4705-b5c4-e9e4cc068b08",
+        "type": ["VerifiableCredential", "OpenBadgeCredential"],
+        "issuer": {
+            "type": ["Profile"],
+            "id": "did:indy:indicio:test:Y4zmgeL7gnnKY5MtdhPvTz",
+            "name": "My Subwallet Label",
+        },
+        "issuanceDate": "2025-03-25T17:27:39Z",
+        "credentialSubject": {
+            "id": "did:key:z6Mkppn6TSkar9uEn9AG66q8JRJLK2KuMVnu2EcMeFScBQZx",
+            "type": ["AchievementSubject"],
+            "achievement": {
+                "name": "Cred Attempt SDK 5",
+                "description": "This wallet supports the use of W3C Verifiable Credentials and has demonstrated interoperability during the presentation request workflow during JFF x VC-EDU PlugFest 3.",
+                "criteria": {
+                    "type": "Criteria",
+                    "narrative": "Wallet solution providers earned this badge by demonstrating interoperability during the presentation request workflow. This included successfully receiving a presentation request, allowing the holder to select at least two types of verifiable credentials to create a verifiable presentation, returning the presentation to the requester, and passing verification of the presentation and the included credentials.",
+                },
+                "image": {
+                    "id": "https://w3c-ccg.github.io/vc-ed/plugfest-3-2023/images/JFF-VC-EDU-PLUGFEST3-badge-image.png",
+                    "type": "Image",
+                },
+                "type": ["Achievement"],
+                "id": "urn:uuid:76f9cf2f-424c-4b76-ad00-deff7ea9af08",
+            },
+        },
+        "credentialStatus": {
+            "id": "https://mepeltierindicio.share.zrok.io/json-ld-revocation/tenants/d2045eb4-c3c2-411a-b1c1-2406d3f0cb64/w3c/status/0#114976",
+            "type": "BitstringStatusListEntry",
+            "statusPurpose": "revocation",
+            "statusListIndex": 114976,
+            "statusListCredential": "https://mepeltierindicio.share.zrok.io/json-ld-revocation/tenants/d2045eb4-c3c2-411a-b1c1-2406d3f0cb64/w3c/status/0",
+        },
+        "proof": {
+            "type": "Ed25519Signature2020",
+            "proofPurpose": "assertionMethod",
+            "verificationMethod": "did:indy:indicio:test:Y4zmgeL7gnnKY5MtdhPvTz#assert",
+            "created": "2025-03-25T17:27:41+00:00",
+            "proofValue": "z32XbAwaBPek45BzLvVu1xhcBcubKUBUwC5pQMW1Fx3JN5MXba7qyeE4vKKeCqaVqwPJyFMBeQRvr6ydfv7chYCnN",
+        },
+        "name": "Cred Attempt SDK 5",
+    }
+
+    def resolver(did: str) -> dict:
+        return {
+            "@context": [
+                "https://www.w3.org/ns/did/v1",
+                "https://w3id.org/security/suites/ed25519-2018/v1",
+                "https://w3id.org/security/suites/ed25519-2020/v1",
+            ],
+            "id": "did:indy:indicio:test:Y4zmgeL7gnnKY5MtdhPvTz",
+            "verificationMethod": [
+                {
+                    "type": "Ed25519VerificationKey2018",
+                    "id": "did:indy:indicio:test:Y4zmgeL7gnnKY5MtdhPvTz#verkey",
+                    "controller": "did:indy:indicio:test:Y4zmgeL7gnnKY5MtdhPvTz",
+                    "publicKeyBase58": "Hw9eYXLY9oHhQGynA7meg8fLWzuBjDtmiJh4NGAdscvd",
+                },
+                {
+                    "controller": "did:indy:indicio:test:Y4zmgeL7gnnKY5MtdhPvTz",
+                    "id": "did:indy:indicio:test:Y4zmgeL7gnnKY5MtdhPvTz#assert",
+                    "publicKeyMultibase": "z6MkoFBQkXuBwcKygrCgAzsZ7Dua1UEtGuUiRazvWxd64EHK",
+                    "type": "Ed25519VerificationKey2020",
+                },
+            ],
+            "authentication": ["did:indy:indicio:test:Y4zmgeL7gnnKY5MtdhPvTz#verkey"],
+            "assertionMethod": ["did:indy:indicio:test:Y4zmgeL7gnnKY5MtdhPvTz#assert"],
+            "service": [
+                {
+                    "id": "#didcomm-0",
+                    "priority": 0,
+                    "recipientKeys": ["#key-0"],
+                    "routingKeys": [],
+                    "serviceEndpoint": "https://mepeltierindicio.share.zrok.io/agent",
+                    "type": "did-communication",
+                }
+            ],
+        }
+
+    result = wrapper.verify_credential(credential, {}, resolver, CONTEXTS)
     assert not result["warnings"]
     assert not result["errors"]
