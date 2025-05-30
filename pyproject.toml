@@ -31,5 +31,5 @@ fastapi = ">=0.112.2"
 [tool.pdm.group.acapy.dependencies]
 acapy-agent = ">=1.2.2"
 [tool.pdm.group.demo.dependencies]
-acapy-controller = ">=0.2.0"
+acapy-controller = ">=0.3.0"
 

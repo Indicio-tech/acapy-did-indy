@@ -23,7 +23,7 @@ services:
         --admin 0.0.0.0 3001
         --admin-insecure-mode
         --genesis-url https://raw.githubusercontent.com/Indicio-tech/indicio-network/main/genesis_files/pool_transactions_testnet_genesis
-        --wallet-type askar
+        --wallet-type askar-anoncreds
         --emit-new-didcomm-prefix
         --wallet-storage-type default
         --wallet-name issuer
@@ -65,7 +65,7 @@ services:
         --admin 0.0.0.0 3003
         --admin-insecure-mode
         --genesis-url https://raw.githubusercontent.com/Indicio-tech/indicio-network/main/genesis_files/pool_transactions_testnet_genesis
-        --wallet-type askar
+        --wallet-type askar-anoncreds
         --emit-new-didcomm-prefix
         --wallet-storage-type default
         --wallet-name issuer

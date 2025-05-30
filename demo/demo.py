@@ -80,7 +80,7 @@ async def main():
                 controller,
                 ["firstname", "lastname"],
                 support_revocation=False,
-                issuerID=did_indy,
+                issuer_id=did_indy,
             )
             print(json.dumps(schema.serialize(), indent=2))
             print(json.dumps(cred_def.serialize(), indent=2))
