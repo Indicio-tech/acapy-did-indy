@@ -122,7 +122,7 @@ services:
     image: acapy-did-web-demo
     build:
       context: ..
-      dockerfile: demo/Dockerfile
+      dockerfile: demo_web_issuance/Dockerfile
     environment:
       AGENT: http://agent:3001
       HOLDER: http://holder-agent:3003

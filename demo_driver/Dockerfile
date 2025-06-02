@@ -18,10 +18,8 @@ ENV PATH="/opt/pdm/bin:$PATH"
 
 # Setup project
 COPY pyproject.toml pdm.lock README.md ./
-RUN pdm install -G demo
-RUN pdm add "acapy-controller @ git+https://github.com/Indicio-tech/acapy-minimal-example.git@main"
-RUN pdm add acapy-controller
+RUN pdm install -G main
 
-COPY ./demo/demo.py ./
+COPY ./demo_driver/main.py ./
 
-ENTRYPOINT ["pdm", "run", "python", "-m", "demo"]
+ENTRYPOINT ["pdm", "run", "python", "-m", "main"]

@@ -1,0 +1,33 @@
+services:
+  driver:
+    platform: linux/amd64
+    image: driver-did-indy
+    build:
+      context: ..
+      dockerfile: demo_driver/Dockerfile.server
+    ports:
+      - "8080:80"
+    environment:
+      ISSUER: "http://driver"
+      PASSPHRASE: "insecure-passphrase"
+      AUTH: "client-tokens"
+      CLIENT_TOKEN_SECRET: "insecure-secret"
+      ADMIN_API_KEY: "insecure-api-key"
+    healthcheck:
+      test: python healthcheck.py localhost 80
+      start_period: 10s
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  demo:
+    platform: linux/amd64
+    image: driver-did-indy
+    build:
+      context: ..
+      dockerfile: demo_driver/Dockerfile
+    environment:
+      DRIVER: http://driver
+    depends_on:
+      driver:
+        condition: service_healthy
