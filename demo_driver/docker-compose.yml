@@ -3,14 +3,14 @@ services:
     platform: linux/amd64
     image: driver-did-indy
     build:
-      context: ..
-      dockerfile: demo_driver/Dockerfile.server
+      context: .. 
+      dockerfile: demo_driver/Dockerfile.driver
     ports:
       - "8080:80"
     environment:
       ISSUER: "http://driver"
       PASSPHRASE: "insecure-passphrase"
-      AUTH: "client-tokens"
+      AUTH: "api-key"
       CLIENT_TOKEN_SECRET: "insecure-secret"
       ADMIN_API_KEY: "insecure-api-key"
     healthcheck:

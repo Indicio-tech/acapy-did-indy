@@ -2,12 +2,15 @@
 
 import logging
 import re
+from os import getenv
+
 from typing import Dict, Optional, Pattern, Sequence, Text
 from acapy_agent.config.injection_context import InjectionContext
 from acapy_agent.config.ledger import fetch_genesis_transactions
 from acapy_agent.core.profile import Profile
 from acapy_agent.messaging.valid import B58
 from acapy_agent.resolver.base import BaseDIDResolver, DIDNotFound, ResolverError, ResolverType
+from acapy_agent.config.settings import Settings
 from indy_vdr import Resolver, VdrError, VdrErrorCode, open_pool
 
 LOGGER = logging.getLogger(__name__)
@@ -49,6 +52,12 @@ class IndyResolver(BaseDIDResolver):
             )
 
         self._resolver = resolver
+
+        api_key = settings.get("admin_api_key") or getenv("ADMIN_API_KEY")
+        if not api_key:
+            raise ResolverError("No API key for did:indy driver found")
+
+        self.api_key = api_key
 
     @property
     def resolver(self):

@@ -40,11 +40,16 @@ class IndyRegistrar:
         LOGGER.info("DID:Indy Initializing did:indy registrar")
         config = settings.for_plugin("acapy_did_indy")
         namespace = config.get("indy_namespace") or getenv("INDY_NAMESPACE")
+        api_key = config.get("admin_api_key") or getenv("ADMIN_API_KEY")
 
         if not namespace:
             raise IndyRegistrarError("Namespace is not configured; cannot init registrar")
 
+        if not api_key:
+            raise IndyRegistrarError("No API key for did:indy driver found")
+
         self.namespace = namespace
+        self.api_key = api_key
 
 
     async def prepare_didcomm_services(

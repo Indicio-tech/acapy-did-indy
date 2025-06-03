@@ -17,8 +17,9 @@ COPY --from=base /opt/pdm /opt/pdm
 ENV PATH="/opt/pdm/bin:$PATH"
 
 # Setup project
-COPY pyproject.toml pdm.lock README.md ./
+COPY pyproject.toml pdm.lock README.md demo_driver/driver.py demo_driver/healthcheck.py ./
 COPY demo_driver/demo.ledgers.toml /run/secrets/ledgers.toml
-RUN pdm install -G main
+RUN pdm install -G :all
 
-ENTRYPOINT ["pdm", "run", "dev"]
+ENTRYPOINT ["pdm", "run"]
+CMD ["fastapi", "dev", "driver.py", "--host", "0.0.0.0", "--port", "80"]
