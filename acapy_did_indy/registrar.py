@@ -1,5 +1,6 @@
 """did:indy registrar."""
 
+import logging
 import json
 from os import getenv
 from typing import List
@@ -25,6 +26,7 @@ from pydid.verification_method import Ed25519VerificationKey2020
 
 from .did import INDY
 
+LOGGER = logging.getLogger(__name__)
 
 class IndyRegistrarError(BaseError):
     """Raised on errors in registrar."""
@@ -35,6 +37,7 @@ class IndyRegistrar:
 
     def __init__(self, settings: Settings):
         """Initialize the registrar."""
+        LOGGER.info("DID:Indy Initializing did:indy registrar")
         config = settings.for_plugin("acapy_did_indy")
         namespace = config.get("indy_namespace") or getenv("INDY_NAMESPACE")
 
@@ -49,6 +52,7 @@ class IndyRegistrar:
         profile: Profile,
         mediation_records: List[MediationRecord] | None = None
     ):
+        LOGGER.info("DID:Indy Preparing didcomm services")
         """Prepare didcomm service for adding to diddocContent."""
         svc_endpoints = []
         default_endpoint = profile.settings.get("default_endpoint")
@@ -91,6 +95,7 @@ class IndyRegistrar:
         ldp_vc: bool = False,
         mediation_records: List[MediationRecord] | None = None
     ) -> DIDInfo:
+        LOGGER.info("DID:Indy Creating did:indy from public nym")
         """Create a did:indy from an already published nym.
 
         If nym is not provided, current public "did" is used.

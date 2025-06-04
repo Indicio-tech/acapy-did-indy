@@ -43,6 +43,8 @@ services:
     depends_on:
       didweb:
         condition: service_started
+      driver:
+        condition: service_healthy
 
   holder-agent:
     image: acapy-did-web
@@ -85,12 +87,35 @@ services:
     depends_on:
       didweb:
         condition: service_started
+      driver:
+        condition: service_healthy
 
   didweb:
     image: did-web-server
     build:
       context: ..
       dockerfile: Dockerfile.server
+
+  driver:
+    platform: linux/amd64
+    image: driver-did-indy
+    ports:
+      - "8080:80"
+    volumes:
+      - "./demo.ledgers.toml:/run/secrets/ledgers.toml:z"
+    environment:
+      ISSUER: "http://driver"
+      PASSPHRASE: "insecure-passphrase"
+      AUTH: "client-tokens"
+      CLIENT_TOKEN_SECRET: "insecure-secret"
+      ADMIN_API_KEY: "insecure-api-key"
+    command: dev
+    healthcheck:
+      test: python healthcheck.py localhost 80
+      start_period: 10s
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   demo:
     image: acapy-did-web-demo
@@ -100,6 +125,7 @@ services:
     environment:
       AGENT: http://agent:3001
       HOLDER: http://holder-agent:3003
+      DRIVER: http://driver
     depends_on:
       agent:
         condition: service_healthy
@@ -107,3 +133,5 @@ services:
         condition: service_healthy
       didweb:
         condition: service_started
+      driver:
+        condition: service_healthy
