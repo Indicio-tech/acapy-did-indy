@@ -6,7 +6,7 @@ authors = [
     {name = "Daniel Bluhm", email = "dbluhm@pm.me"},
 ]
 dependencies = [
-    "did-indy-py[client,demo,driver] @ git+https://github.com/Indicio-tech/did-indy-py.git"
+    "did-indy-py[client,demo,driver] @ git+https://github.com/Indicio-tech/did-indy-py.git",
     "base58>=2.1.1",
     "aries-askar>=0.4.4",
     "anoncreds>=0.2.0",
