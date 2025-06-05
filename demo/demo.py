@@ -12,7 +12,7 @@ AGENT = getenv("AGENT", "http://localhost:3001")
 HOLDER = getenv("HOLDER", "http://localhost:3003")
 
 
-async def web_issuance():
+async def main():
     async with Controller(AGENT) as controller, Controller(HOLDER) as holder:
         did = await indy_anoncred_onboard(controller)
         did_indy_result = await controller.post(
@@ -97,4 +97,4 @@ async def web_issuance():
             print(json.dumps(holder_cred_ex.serialize(), indent=2))
 
 if __name__ == "__main__":
-    asyncio.run(web_issuance())
+    asyncio.run(main())
