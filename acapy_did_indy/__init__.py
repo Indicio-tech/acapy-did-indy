@@ -8,13 +8,15 @@ from acapy_agent.wallet.did_method import DIDMethods
 from acapy_agent.resolver.did_resolver import DIDResolver
 from acapy_agent.anoncreds.registry import AnonCredsRegistry
 from acapy_agent.config.provider import ClassProvider
+from acapy_agent.core.error import BaseError
 
 from did_indy.author.author import Author, AuthorDependencies
 from did_indy.ledger import LedgerPool, fetch_genesis_transactions
-from did_indy.client.client import IndyDriverAdminClient, IndyDriverClient
+from did_indy.client.client import IndyDriverClient
 from did_indy.cache import BasicCache
 
 DRIVER = getenv("DRIVER", "http://driver")
+API_KEY = getenv("API_KEY", None)
 
 from .did import INDY
 from .registrar import IndyRegistrar
@@ -38,15 +40,11 @@ async def setup(context: InjectionContext):
     resolver.register_resolver(indy_resolver)
     context.injector.bind_instance(IndyRegistrar, IndyRegistrar(context.settings))
 
-    admin = IndyDriverAdminClient(DRIVER, admin_api_key="insecure-api-key")
-    token = (
-        await admin.create_client(
-            "test",
-            schemas=True,
-            cred_defs=True,
-        )
-    ).token
-    client = IndyDriverClient(DRIVER, client_token=token)
+    if API_KEY is None:
+        LOGGER.error("No API key found. Please provide an API key using the `API_KEY` environment variable.")
+        return 
+
+    client = IndyDriverClient(DRIVER, client_api_key=API_KEY)
     NAMESPACE = "indicio:test"
     taa_info = await client.get_taa(NAMESPACE)
     taa = await client.accept_taa(taa_info, "on_file")

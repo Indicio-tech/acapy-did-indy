@@ -53,12 +53,6 @@ class IndyResolver(BaseDIDResolver):
 
         self._resolver = resolver
 
-        api_key = settings.get("admin_api_key") or getenv("ADMIN_API_KEY")
-        if not api_key:
-            raise ResolverError("No API key for did:indy driver found")
-
-        self.api_key = api_key
-
     @property
     def resolver(self):
         """Return resolver."""
