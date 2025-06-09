@@ -1,4 +1,4 @@
-FROM ghcr.io/openwallet-foundation/acapy-agent:py3.12-1.2.2
+FROM ghcr.io/openwallet-foundation/acapy-agent:py3.12-nightly
 #FROM acapy-vcdm
 
 RUN mkdir acapy_did_web && touch acapy_did_web/__init__.py
