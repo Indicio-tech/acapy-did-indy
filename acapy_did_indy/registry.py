@@ -26,7 +26,7 @@ from acapy_agent.anoncreds.models.schema import (
     SchemaResult,
 )
 from acapy_agent.anoncreds.models.schema_info import AnonCredsSchemaInfo
-from did_indy.client.client import IndyDriverAdminClient, IndyDriverClient
+from did_indy.client.client import IndyDriverClient
 from did_indy.ledger import LedgerPool, fetch_genesis_transactions
 
 LOGGER = logging.getLogger(__name__)
