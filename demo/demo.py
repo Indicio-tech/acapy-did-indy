@@ -15,11 +15,13 @@ HOLDER = getenv("HOLDER", "http://localhost:3003")
 async def main():
     async with Controller(AGENT) as controller, Controller(HOLDER) as holder:
         did = await indy_anoncred_onboard(controller)
+        print(f"Did: {did}")
         did_indy_result = await controller.post(
             "/did/indy/from-nym",
             json={
                 "ldp_vc": True,
                 "didcomm": True,
+                "nym": did.did,
             }
         )
         did_indy = did_indy_result["did"]
@@ -76,6 +78,10 @@ async def main():
             agent_conn, holder_conn = await didexchange(controller, holder)
 
         with section("Register Schema"):
+            print("Registering Schema and Credential Definition")
+            print(f"Using DID: {did_indy}")
+            print(f"Using Verifiable Method: {vm}")
+            print("Did result:", json.dumps(did_indy_result, indent=2))
             schema, cred_def = await indy_anoncred_credential_artifacts(
                 controller,
                 ["firstname", "lastname"],

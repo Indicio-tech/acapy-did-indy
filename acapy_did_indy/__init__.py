@@ -63,6 +63,7 @@ async def setup(context: InjectionContext):
         "acapy_did_indy.registry.IndyRegistry",
         client=client,
         pool=pool,
+        taa=taa,
         # supported_identifiers=[],
         # method_name="did:indy",
     ).provide(context.settings, context.injector)

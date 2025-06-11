@@ -24,18 +24,50 @@ from acapy_agent.anoncreds.models.schema import (
     AnonCredsSchema,
     GetSchemaResult,
     SchemaResult,
+    SchemaState,
 )
 from acapy_agent.anoncreds.models.schema_info import AnonCredsSchemaInfo
 from did_indy.client.client import IndyDriverAdminClient, IndyDriverClient
 from did_indy.ledger import LedgerPool, fetch_genesis_transactions
+from did_indy.author.author import Author, AuthorDependencies
+from aries_askar import Key
+from acapy_agent.wallet.base import BaseWallet
+from acapy_agent.core.error import BaseError
+from did_indy.models.taa import TaaAcceptance
+from anoncreds import (
+    CredentialDefinition,
+    RevocationRegistryDefinition,
+    RevocationStatusList,
+    Schema,
+)
+from uuid import uuid4
+
+from base58 import b58decode as b58_to_bytes
+
 
 LOGGER = logging.getLogger(__name__)
+
+
+class IndyRegistryError(BaseError):
+    """Raised on errors in registrar."""
+
+
+class AuthorDependenciesBasic(AuthorDependencies):
+    def __init__(self, key: Key, pool: LedgerPool):
+        self.key = key
+        self.pool = pool
+
+    async def get_key(self, did: str) -> Key:
+        return self.key
+
+    async def get_pool(self, namespace: str) -> LedgerPool:
+        return self.pool
 
 
 class IndyRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
     """DIDIndyRegistry."""
 
-    def __init__(self, client: IndyDriverClient, pool: LedgerPool):
+    def __init__(self, client: IndyDriverClient, pool: LedgerPool, taa: Optional[TaaAcceptance] = None):
         """Initialize an instance.
 
         Args:
@@ -43,6 +75,9 @@ class IndyRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
 
         """
         self._supported_identifiers_regex = re.compile(r"^did:indy:.*$")
+        self.client = client
+        self.pool = pool
+        self.taa = taa
 
     @property
     def supported_identifiers_regex(self) -> Pattern:
@@ -69,7 +104,56 @@ class IndyRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
         LOGGER.info("ANONCREDS: register_schema %s - %s", schema.issuer_id, schema.name)
 
         LOGGER.warning("Current DID: %s", schema.issuer_id)
-        raise NotImplementedError()
+        async with profile.session() as session:
+            wallet = session.inject(BaseWallet)
+            if schema.issuer_id:
+                public_did = await wallet.get_local_did(schema.issuer_id)
+            else:
+                public_did = await wallet.get_public_did()
+
+            if not public_did:
+                raise IndyRegistryError("No nym provided and public DID not set")
+            # did = f"did:indy:{self.namespace}:{public_did.did}"
+
+            # # Exists?
+            # try:
+            #     previous = await wallet.get_local_did(did)
+            #     return previous
+            # except WalletNotFoundError:
+            #     pass
+        # Export the actual Askar Key object from the wallet using the verkey
+        # key = await wallet.get_signing_key(public_did.verkey)
+        # Convert the verkey string to an Askar Key object
+        key = Key.from_secret_bytes(public_did.key_type._type, b58_to_bytes(public_did.verkey))
+        author = Author(self.client, AuthorDependenciesBasic(key, self.pool))
+        NAMESPACE = "indicio:test"
+        # result = await author.create_nym(NAMESPACE, verkey=public_did.verkey, taa=self.taa)
+        LOGGER.info("Creating NYM with verkey: %s", public_did.verkey)
+        LOGGER.info("Using Nym: %s", schema.issuer_id)
+        result = await author.client.create_nym(NAMESPACE, verkey=public_did.verkey, nym=schema.issuer_id[len(NAMESPACE)+10:], taa=self.taa)
+        schema_def = Schema.create(
+            name=schema.name,
+            version=schema.version,
+            attr_names=schema.attr_names,
+            issuer_id=schema.issuer_id,
+        )
+        result = await author.register_schema(schema_def, self.taa)
+
+        retval = SchemaResult(
+            job_id=uuid4().hex,
+            schema_state=SchemaState(
+                state=SchemaState.STATE_FINISHED,
+                schema_id=result.schema_id,
+                schema=AnonCredsSchema.from_native(
+                    Schema.create(
+                        name=result.registration_metadata.txn.data.data.name,
+                        version=result.registration_metadata.txn.data.data.version,
+                        attr_names=result.registration_metadata.txn.data.data.attr_names,
+                        issuer_id=result.schema_id,
+                    )),
+            ),
+        )
+        return retval
 
     async def get_credential_definition(
         self, profile: Profile, credential_definition_id: str
