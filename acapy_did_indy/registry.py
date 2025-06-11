@@ -75,7 +75,7 @@ class IndyRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
             None
 
         """
-        self._supported_identifiers_regex = re.compile(r"^did:indy:.*$")
+        self._supported_identifiers_regex = re.compile(r"^did:indy(:[0-9a-zA-Z]+)+:.+$")
         self.client = client
         self.pool = pool
         self.taa = taa
@@ -84,7 +84,6 @@ class IndyRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
     def supported_identifiers_regex(self) -> Pattern:
         """Supported Identifiers regex."""
         return self._supported_identifiers_regex
-        # TODO: fix regex (too general)
 
     async def setup(self, context: InjectionContext) -> None:
         """Setup."""
