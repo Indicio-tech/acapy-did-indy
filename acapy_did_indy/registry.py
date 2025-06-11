@@ -27,7 +27,7 @@ from acapy_agent.anoncreds.models.schema import (
     SchemaState,
 )
 from acapy_agent.anoncreds.models.schema_info import AnonCredsSchemaInfo
-from did_indy.client.client import IndyDriverAdminClient, IndyDriverClient
+from did_indy.client.client import IndyDriverClient
 from did_indy.ledger import LedgerPool, fetch_genesis_transactions
 from did_indy.author.author import Author, AuthorDependencies
 from aries_askar import Key
