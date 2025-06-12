@@ -12,6 +12,9 @@ from acapy_agent.anoncreds.models.credential_definition import (
     CredDefResult,
     GetCredDefResult,
     CredDefState,
+    CredDefValue,
+    CredDefValuePrimary,
+    CredDefValueRevocation,
 )
 from acapy_agent.anoncreds.models.revocation import (
     GetRevListResult,
@@ -31,7 +34,7 @@ from acapy_agent.anoncreds.models.schema import (
 )
 from acapy_agent.anoncreds.models.schema_info import AnonCredsSchemaInfo
 from did_indy.client.client import IndyDriverClient
-from did_indy.ledger import LedgerPool, fetch_genesis_transactions
+from did_indy.ledger import Ledger, LedgerPool, LedgerTransactionError
 from did_indy.author.author import Author, AuthorDependencies
 from aries_askar import Key
 from acapy_agent.wallet.base import BaseWallet
@@ -96,7 +99,26 @@ class IndyRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
     async def get_schema(self, profile: Profile, schema_id: str) -> GetSchemaResult:
         """Get a schema from the registry."""
         LOGGER.info("ANONCREDS: get_schema %s", schema_id)
-        raise NotImplementedError()
+        
+        async with Ledger(self.pool) as ledger:
+            try:
+                schema_deref = await ledger.get_schema(schema_id)
+            except LedgerTransactionError as error:
+                LOGGER.exception("Failed to retrieve schema")
+                raise IndyRegistryError(f"Cannot retrieve schema: {error}") from error
+
+        schema = schema_deref.contentStream
+        return GetSchemaResult(
+            schema=AnonCredsSchema(
+                issuer_id=schema_id.split(":")[0],
+                attr_names=schema.attr_names,
+                name=schema.name,
+                version=schema.version,
+            ),
+            schema_id=schema_id,
+            resolution_metadata=schema_deref.dereferencingMetadata,
+            schema_metadata=schema_deref.contentMetadata.model_dump(),
+        )
 
     async def register_schema(
         self,
@@ -153,7 +175,7 @@ class IndyRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
                         name=schema_response.registration_metadata.txn.data.data.name,
                         version=schema_response.registration_metadata.txn.data.data.version,
                         attr_names=schema_response.registration_metadata.txn.data.data.attr_names,
-                        issuer_id=schema_response.schema_id,
+                        issuer_id=schema_response.schema_id.split(":")[0],
                     )),
             ),
             registration_metadata=schema_response.registration_metadata.model_dump(),
@@ -165,7 +187,28 @@ class IndyRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
     ) -> GetCredDefResult:
         """Get a credential definition from the registry."""
         LOGGER.info("ANONCREDS: get_credential_definition %s", credential_definition_id)
-        raise NotImplementedError()
+        async with Ledger(self.pool) as ledger:
+            try:
+                cred_def_deref = await ledger.get_cred_def(credential_definition_id)
+            except LedgerTransactionError as error:
+                LOGGER.exception("Failed to retrieve credential definition")
+                raise IndyRegistryError(f"Cannot retrieve credential definition: {error}") from error
+
+        return GetCredDefResult(
+            credential_definition_id=credential_definition_id,
+            credential_definition=CredDef(
+                issuer_id="", # TODO
+                schema_id="", # TODO
+                type=cred_def_deref.contentMetadata.nodeResponse.result.signature_type,
+                tag=cred_def_deref.contentMetadata.nodeResponse.result.tag,
+                value=CredDefValue(
+                    primary=CredDefValuePrimary.deserialize(cred_def_deref.contentStream.primary),
+                    revocation=None, # TODO
+                ),
+            ),
+            resolution_metadata=cred_def_deref.dereferencingMetadata,
+            credential_definition_metadata=cred_def_deref.contentMetadata.model_dump(),
+        )
 
     async def register_credential_definition(
         self,
@@ -211,7 +254,7 @@ class IndyRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
             job_id=uuid4().hex,
             credential_definition_state=CredDefState(
                 state=CredDefState.STATE_FINISHED,
-                credential_definition_id=cred_def_response.indy_cred_def_id,  # double-check
+                credential_definition_id=cred_def_response.indy_cred_def_id,
                 credential_definition=credential_definition,
             ),
             registration_metadata=cred_def_response.registration_metadata.model_dump(),
@@ -350,7 +393,48 @@ class IndyRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
         LOGGER.info(
             "ANONCREDS: update_revocation_list %s", rev_reg_def
         )
-        raise NotImplementedError()
+        LOGGER.warning("Current DID: %s", rev_reg_def.issuer_id)
+
+        async with profile.session() as session:
+            wallet = session.inject(BaseWallet)
+            if rev_reg_def.issuer_id:
+                public_did = await wallet.get_local_did(rev_reg_def.issuer_id)
+            else:
+                public_did = await wallet.get_public_did()
+
+            if not public_did:
+                raise IndyRegistryError("No nym provided and public DID not set")
+
+        # Convert the verkey string to an Askar Key object
+        key = Key.from_secret_bytes(public_did.key_type._type, b58_to_bytes(public_did.verkey))
+        author = Author(self.client, AuthorDependenciesBasic(key, self.pool))
+        
+        LOGGER.info("Creating NYM with verkey: %s", public_did.verkey)
+        LOGGER.info("Using Nym: %s", rev_reg_def.issuer_id)
+
+        nym_response = await author.client.create_nym(
+            NAMESPACE,
+            verkey=public_did.verkey,
+            nym=rev_reg_def.issuer_id[len(NAMESPACE)+10:],
+            taa=self.taa,
+        )
+
+        rev_status_list_response = await author.update_rev_status_list(
+            prev_list=prev_list.to_native(),
+            curr_list=curr_list.to_native(),
+            revoked=list(revoked),
+            taa=self.taa,
+        )
+
+        return RevListResult(
+            job_id=uuid4().hex,
+            revocation_list_state=RevListState(
+                state=RevRegDefState.STATE_FINISHED,
+                revocation_list=curr_list,
+            ),
+            registration_metadata=rev_status_list_response.registration_metadata.model_dump(),
+            revocation_list_metadata=rev_status_list_response.rev_status_list_metadata.model_dump(),
+        )
 
     async def get_schema_info_by_id(
         self, profile: Profile, schema_id: str

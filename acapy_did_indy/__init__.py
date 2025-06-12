@@ -9,8 +9,7 @@ from acapy_agent.resolver.did_resolver import DIDResolver
 from acapy_agent.anoncreds.registry import AnonCredsRegistry
 from acapy_agent.config.provider import ClassProvider
 
-from did_indy.author.author import Author, AuthorDependencies
-from did_indy.ledger import LedgerPool, fetch_genesis_transactions
+from did_indy.ledger import LedgerPool, fetch_genesis_transactions, BaseLedger
 from did_indy.client.client import IndyDriverClient
 from did_indy.cache import BasicCache
 
