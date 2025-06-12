@@ -4,5 +4,6 @@
     "[python]": {
         "editor.formatOnSave": false,
         "editor.defaultFormatter": "charliermarsh.ruff"
-    }
+    },
+    "python.analysis.typeCheckingMode": "standard"
 }

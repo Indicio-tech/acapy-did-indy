@@ -20,6 +20,8 @@ from acapy_agent.anoncreds.models.revocation import (
     RevListResult,
     RevRegDef,
     RevRegDefResult,
+    RevRegDefState,
+    RevListState,
 )
 from acapy_agent.anoncreds.models.schema import (
     AnonCredsSchema,
@@ -48,6 +50,8 @@ from base58 import b58decode as b58_to_bytes
 
 LOGGER = logging.getLogger(__name__)
 
+# TODO: FIX
+NAMESPACE = "indicio:test"
 
 class IndyRegistryError(BaseError):
     """Raised on errors in registrar."""
@@ -98,7 +102,6 @@ class IndyRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
         self,
         profile: Profile,
         schema: AnonCredsSchema,
-        namespace: str,
         options: Optional[dict] = None,
     ) -> SchemaResult:
         """Register a schema on the registry."""
@@ -114,7 +117,7 @@ class IndyRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
 
             if not public_did:
                 raise IndyRegistryError("No nym provided and public DID not set")
-            # did = f"did:indy:{self.namespace}:{public_did.did}"
+            # did = f"did:indy:{self.NAMESPACE}:{public_did.did}"
 
             # # Exists?
             # try:
@@ -127,24 +130,18 @@ class IndyRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
         # Convert the verkey string to an Askar Key object
         key = Key.from_secret_bytes(public_did.key_type._type, b58_to_bytes(public_did.verkey))
         author = Author(self.client, AuthorDependenciesBasic(key, self.pool))
-        # result = await author.create_nym(namespace, verkey=public_did.verkey, taa=self.taa)
+        # result = await author.create_nym(NAMESPACE, verkey=public_did.verkey, taa=self.taa)
         LOGGER.info("Creating NYM with verkey: %s", public_did.verkey)
         LOGGER.info("Using Nym: %s", schema.issuer_id)
 
         nym_response = await author.client.create_nym(
-            namespace,
+            NAMESPACE,
             verkey=public_did.verkey,
-            nym=schema.issuer_id[len(namespace)+10:],
+            nym=schema.issuer_id[len(NAMESPACE)+10:],
             taa=self.taa
         )
 
-        schema_def = Schema.create(
-            name=schema.name,
-            version=schema.version,
-            attr_names=schema.attr_names,
-            issuer_id=schema.issuer_id,
-        )
-        schema_response = await author.register_schema(schema_def, self.taa)
+        schema_response = await author.register_schema(schema.to_native(), self.taa)
 
         return SchemaResult(
             job_id=uuid4().hex,
@@ -175,20 +172,19 @@ class IndyRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
         profile: Profile,
         schema: GetSchemaResult,
         credential_definition: CredDef,
-        namespace: str,
         options: Optional[dict] = None,
     ) -> CredDefResult:
         """Register a credential definition on the registry."""
         LOGGER.info(
             "ANONCREDS: register_credential_definition %s",
-            credential_definition.credential_definition_id,
+            credential_definition,
         )
-        LOGGER.warning("Current DID: %s", schema.issuer_id)
+        LOGGER.warning("Current DID: %s", credential_definition.issuer_id)
 
         async with profile.session() as session:
             wallet = session.inject(BaseWallet)
-            if schema.issuer_id:
-                public_did = await wallet.get_local_did(schema.issuer_id)
+            if credential_definition.issuer_id:
+                public_did = await wallet.get_local_did(credential_definition.issuer_id)
             else:
                 public_did = await wallet.get_public_did()
 
@@ -200,30 +196,23 @@ class IndyRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
         author = Author(self.client, AuthorDependenciesBasic(key, self.pool))
         
         LOGGER.info("Creating NYM with verkey: %s", public_did.verkey)
-        LOGGER.info("Using Nym: %s", schema.issuer_id)
+        LOGGER.info("Using Nym: %s", credential_definition.issuer_id)
 
         nym_response = await author.client.create_nym(
-            namespace,
+            NAMESPACE,
             verkey=public_did.verkey,
-            nym=schema.issuer_id[len(namespace)+10:],
+            nym=credential_definition.issuer_id[len(NAMESPACE)+10:],
             taa=self.taa,
         )
 
-        cred_def = CredentialDefinition.create(
-            schema_id=schema.schema_id,
-            schema=schema,
-            issuer_id=credential_definition.issuer_id,
-            tag=credential_definition.tag,
-            signature_type=key.algorithm.value,
-        )
-        cred_def_response = await author.register_cred_def(cred_def, self.taa)
+        cred_def_response = await author.register_cred_def(credential_definition.to_native(), self.taa)
 
         return CredDefResult(
             job_id=uuid4().hex,
             credential_definition_state=CredDefState(
                 state=CredDefState.STATE_FINISHED,
                 credential_definition_id=cred_def_response.indy_cred_def_id,  # double-check
-                credential_definition=cred_def,
+                credential_definition=credential_definition,
             ),
             registration_metadata=cred_def_response.registration_metadata.model_dump(),
             credential_definition_metadata=cred_def_response.cred_def_metadata.model_dump(),
@@ -242,15 +231,51 @@ class IndyRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
         self,
         profile: Profile,
         revocation_registry_definition: RevRegDef,
-        namespace: str,
         options: Optional[dict] = None,
     ) -> RevRegDefResult:
         """Register a revocation registry definition on the registry."""
         LOGGER.info(
             "ANONCREDS: register_revocation_registry_definition %s",
-            revocation_registry_definition.revocation_registry_id,
+            revocation_registry_definition,
         )
-        raise NotImplementedError()
+        LOGGER.warning("Current DID: %s", revocation_registry_definition.issuer_id)
+
+        async with profile.session() as session:
+            wallet = session.inject(BaseWallet)
+            if revocation_registry_definition.issuer_id:
+                public_did = await wallet.get_local_did(revocation_registry_definition.issuer_id)
+            else:
+                public_did = await wallet.get_public_did()
+
+            if not public_did:
+                raise IndyRegistryError("No nym provided and public DID not set")
+
+        # Convert the verkey string to an Askar Key object
+        key = Key.from_secret_bytes(public_did.key_type._type, b58_to_bytes(public_did.verkey))
+        author = Author(self.client, AuthorDependenciesBasic(key, self.pool))
+        
+        LOGGER.info("Creating NYM with verkey: %s", public_did.verkey)
+        LOGGER.info("Using Nym: %s", revocation_registry_definition.issuer_id)
+
+        nym_response = await author.client.create_nym(
+            NAMESPACE,
+            verkey=public_did.verkey,
+            nym=revocation_registry_definition.issuer_id[len(NAMESPACE)+10:],
+            taa=self.taa,
+        )
+
+        rev_reg_response = await author.register_rev_reg_def(revocation_registry_definition.to_native(), self.taa)
+
+        return RevRegDefResult(
+            job_id=uuid4().hex,
+            revocation_registry_definition_state=RevRegDefState(
+                state=RevRegDefState.STATE_FINISHED,
+                revocation_registry_definition_id=rev_reg_response.indy_rev_reg_def_id,
+                revocation_registry_definition=revocation_registry_definition,
+            ),
+            registration_metadata=rev_reg_response.registration_metadata.model_dump(),
+            revocation_registry_definition_metadata=rev_reg_response.rev_reg_def_metadata.model_dump(),
+        )
 
     async def get_revocation_list(
         self,
@@ -268,14 +293,49 @@ class IndyRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
         profile: Profile,
         rev_reg_def: RevRegDef,
         rev_list: RevList,
-        namespace: str,
         options: Optional[dict] = None,
     ) -> RevListResult:
         """Register a revocation list on the registry."""
         LOGGER.info(
-            "ANONCREDS: register_revocation_list %s", rev_reg_def.revocation_registry_id
+            "ANONCREDS: register_revocation_list %s", rev_reg_def
         )
-        raise NotImplementedError()
+        LOGGER.warning("Current DID: %s", rev_reg_def.issuer_id)
+
+        async with profile.session() as session:
+            wallet = session.inject(BaseWallet)
+            if rev_reg_def.issuer_id:
+                public_did = await wallet.get_local_did(rev_reg_def.issuer_id)
+            else:
+                public_did = await wallet.get_public_did()
+
+            if not public_did:
+                raise IndyRegistryError("No nym provided and public DID not set")
+
+        # Convert the verkey string to an Askar Key object
+        key = Key.from_secret_bytes(public_did.key_type._type, b58_to_bytes(public_did.verkey))
+        author = Author(self.client, AuthorDependenciesBasic(key, self.pool))
+        
+        LOGGER.info("Creating NYM with verkey: %s", public_did.verkey)
+        LOGGER.info("Using Nym: %s", rev_reg_def.issuer_id)
+
+        nym_response = await author.client.create_nym(
+            NAMESPACE,
+            verkey=public_did.verkey,
+            nym=rev_reg_def.issuer_id[len(NAMESPACE)+10:],
+            taa=self.taa,
+        )
+
+        rev_status_list_response = await author.register_rev_status_list(rev_list.to_native(), self.taa)
+
+        return RevListResult(
+            job_id=uuid4().hex,
+            revocation_list_state=RevListState(
+                state=RevRegDefState.STATE_FINISHED,
+                revocation_list=rev_list,
+            ),
+            registration_metadata=rev_status_list_response.registration_metadata.model_dump(),
+            revocation_list_metadata=rev_status_list_response.rev_status_list_metadata.model_dump(),
+        )
 
     async def update_revocation_list(
         self,
@@ -288,7 +348,7 @@ class IndyRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
     ) -> RevListResult:
         """Update a revocation list on the registry."""
         LOGGER.info(
-            "ANONCREDS: update_revocation_list %s", rev_reg_def.revocation_registry_id
+            "ANONCREDS: update_revocation_list %s", rev_reg_def
         )
         raise NotImplementedError()
 
@@ -297,4 +357,4 @@ class IndyRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
     ) -> AnonCredsSchemaInfo:
         """Get a schema info from the registry."""
         LOGGER.info("ANONCREDS: get_schema_info_by_id %s", schema_id)
-        return await super().get_schema_info_by_id(schema_id)
+        return await super().get_schema_info_by_id(profile, schema_id)

@@ -14,16 +14,15 @@ from did_indy.ledger import LedgerPool, fetch_genesis_transactions
 from did_indy.client.client import IndyDriverClient
 from did_indy.cache import BasicCache
 
-DRIVER = getenv("DRIVER", "http://driver")
-API_KEY = getenv("API_KEY", None)
-
 from .did import INDY
 from .registrar import IndyRegistrar
 from .registry import IndyRegistry
 from .resolver import IndyResolver
 
-LOGGER = logging.getLogger(__name__)
+DRIVER = getenv("DRIVER", "http://driver")
+API_KEY = getenv("API_KEY", None)
 
+LOGGER = logging.getLogger(__name__)
 
 async def setup(context: InjectionContext):
     registry = context.inject_or(AnonCredsRegistry)
