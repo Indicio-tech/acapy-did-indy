@@ -23,8 +23,12 @@ from acapy_agent.wallet.key_type import ED25519
 import base58
 from indy_vdr import ledger
 from pydid.verification_method import Ed25519VerificationKey2020
+from did_indy.client.client import IndyDriverClient
+from did_indy.ledger import Ledger, LedgerPool, LedgerTransactionError
+from did_indy.author.author import Author, AuthorDependencies
 
 from .did import INDY
+from .author import AuthorSession
 
 LOGGER = logging.getLogger(__name__)
 
@@ -35,11 +39,20 @@ class IndyRegistrarError(BaseError):
 class IndyRegistrar:
     """did:indy registrar."""
 
-    def __init__(self, settings: Settings):
+    def __init__(
+            self,
+            settings: Settings,
+            client: IndyDriverClient | None = None,
+            pool: LedgerPool | None = None,
+            taa: dict | None = None,
+        ):
         """Initialize the registrar."""
         LOGGER.info("DID:Indy Initializing did:indy registrar")
         config = settings.for_plugin("acapy_did_indy")
         namespace = config.get("indy_namespace") or getenv("INDY_NAMESPACE")
+        self.client = client
+        self.pool = pool
+        self.taa = taa
 
         if not namespace:
             raise IndyRegistrarError("Namespace is not configured; cannot init registrar")
@@ -122,6 +135,7 @@ class IndyRegistrar:
                 pass
 
             # Enable ldp-vc issuance?
+            verkey = public_did.verkey
             if ldp_vc:
                 kid = f"{did}#assert"
                 key = await wallet.create_key(key_type=ED25519, kid=kid)
@@ -129,18 +143,7 @@ class IndyRegistrar:
                     multicodec.wrap("ed25519-pub", base58.b58decode(key.verkey)),
                     "base58btc",
                 )
-                did_info = DIDInfo(
-                    did=did,
-                    # TODO ACA-Py's cred issuance signatures currently rely on the verkey of
-                    # the DIDInfo object being the signer
-                    verkey=key.verkey,
-                    metadata={
-                        "namespace": self.namespace,
-                    },
-                    method=INDY,
-                    key_type=ED25519,
-                )
-                await wallet.store_did(did_info)
+                verkey = key.verkey
                 vm = Ed25519VerificationKey2020.make(
                     id=kid, controller=did, public_key_multibase=public_key_multibase
                 )
@@ -150,35 +153,48 @@ class IndyRegistrar:
                     "assertionMethod": [vm.id],
                 }
             else:
-                did_info = DIDInfo(
-                    did=did,
-                    verkey=public_did.verkey,
-                    metadata={
-                        "namespace": self.namespace,
-                    },
-                    method=INDY,
-                    key_type=ED25519,
-                )
-                await wallet.store_did(did_info)
                 doc_content = {}
 
             if didcomm:
                 services = await self.prepare_didcomm_services(profile, mediation_records)
                 doc_content["service"] = services
-
-            nym_txn = ledger.build_nym_request(
-                public_did.did, public_did.did, diddoc_content=json.dumps(doc_content)
-            )
-            base_ledger = session.inject(BaseLedger)
-            async with base_ledger:
-                await base_ledger.txn_submit(nym_txn, sign=True, sign_did=public_did)
-                attrib_txn = ledger.build_attrib_request(
-                    public_did.did,
-                    public_did.did,
-                    xhash=None,
-                    raw=json.dumps({"diddocContent": doc_content}),
-                    enc=None,
+            async with profile.session() as session:
+                author_session = session.inject(AuthorSession)
+                async with author_session.with_verkey(public_did.verkey) as author:
+                    author = author_session.get_author()
+                ledger_response = await author.client.create_nym(
+                    namespace=self.namespace,
+                    verkey=verkey,
+                    # nym=public_did.did,
+                    diddoc_content=json.dumps(doc_content),
+                    taa=author_session.taa,
+                    # version=1,
                 )
-                await base_ledger.txn_submit(attrib_txn, sign=True, sign_did=public_did)
+                LOGGER.debug("DID:Indy Nym creation response: %s", ledger_response)
+            did_info = DIDInfo(
+                did=ledger_response.did,
+                verkey=verkey,
+                metadata={
+                    "namespace": self.namespace,
+                },
+                method=INDY,
+                key_type=ED25519,
+            )
+            await wallet.store_did(did_info)
+
+            # nym_txn = ledger.build_nym_request(
+            #     public_did.did, public_did.did, diddoc_content=json.dumps(doc_content)
+            # )
+            # base_ledger = session.inject(BaseLedger)
+            # async with base_ledger:
+            #     await base_ledger.txn_submit(nym_txn, sign=True, sign_did=public_did)
+            #     attrib_txn = ledger.build_attrib_request(
+            #         public_did.did,
+            #         public_did.did,
+            #         xhash=None,
+            #         raw=json.dumps({"diddocContent": doc_content}),
+            #         enc=None,
+            #     )
+            #     await base_ledger.txn_submit(attrib_txn, sign=True, sign_did=public_did)
 
             return did_info

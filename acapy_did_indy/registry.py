@@ -40,6 +40,7 @@ from aries_askar import Key
 from acapy_agent.wallet.base import BaseWallet
 from acapy_agent.core.error import BaseError
 from did_indy.models.taa import TaaAcceptance
+from .author import AuthorSession
 from anoncreds import (
     CredentialDefinition,
     RevocationRegistryDefinition,
@@ -60,32 +61,18 @@ class IndyRegistryError(BaseError):
     """Raised on errors in registrar."""
 
 
-class AuthorDependenciesBasic(AuthorDependencies):
-    def __init__(self, key: Key, pool: LedgerPool):
-        self.key = key
-        self.pool = pool
-
-    async def get_key(self, did: str) -> Key:
-        return self.key
-
-    async def get_pool(self, namespace: str) -> LedgerPool:
-        return self.pool
-
-
 class IndyRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
     """DIDIndyRegistry."""
 
-    def __init__(self, client: IndyDriverClient, pool: LedgerPool, taa: Optional[TaaAcceptance] = None):
+    def __init__(self, client: IndyDriverClient):
         """Initialize an instance.
 
         Args:
             None
 
         """
-        self._supported_identifiers_regex = re.compile(r"^did:indy(:[0-9a-zA-Z]+)+:.+$")
+        self._supported_identifiers_regex = re.compile(r"^did:indy:.+$")
         self.client = client
-        self.pool = pool
-        self.taa = taa
 
     @property
     def supported_identifiers_regex(self) -> Pattern:
@@ -100,7 +87,9 @@ class IndyRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
         """Get a schema from the registry."""
         LOGGER.info("ANONCREDS: get_schema %s", schema_id)
         
-        async with Ledger(self.pool) as ledger:
+        async with profile.session() as session:
+            ledger_pool = session.inject(LedgerPool)
+        async with Ledger(ledger_pool) as ledger:
             try:
                 schema_deref = await ledger.get_schema(schema_id)
             except LedgerTransactionError as error:
@@ -110,7 +99,7 @@ class IndyRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
         schema = schema_deref.contentStream
         return GetSchemaResult(
             schema=AnonCredsSchema(
-                issuer_id=schema_id.split(":")[0],
+                issuer_id=schema_id.split("/", maxsplit=1)[0],
                 attr_names=schema.attr_names,
                 name=schema.name,
                 version=schema.version,
@@ -139,6 +128,7 @@ class IndyRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
 
             if not public_did:
                 raise IndyRegistryError("No nym provided and public DID not set")
+            author_session = session.inject(AuthorSession)
             # did = f"did:indy:{self.NAMESPACE}:{public_did.did}"
 
             # # Exists?
@@ -150,20 +140,27 @@ class IndyRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
         # Export the actual Askar Key object from the wallet using the verkey
         # key = await wallet.get_signing_key(public_did.verkey)
         # Convert the verkey string to an Askar Key object
-        key = Key.from_secret_bytes(public_did.key_type._type, b58_to_bytes(public_did.verkey))
-        author = Author(self.client, AuthorDependenciesBasic(key, self.pool))
+        # key = Key.from_public_bytes(public_did.key_type._type, b58_to_bytes(public_did.verkey))
+        # author = Author(self.client, AuthorDependenciesBasic(key, self.pool))
         # result = await author.create_nym(NAMESPACE, verkey=public_did.verkey, taa=self.taa)
         LOGGER.info("Creating NYM with verkey: %s", public_did.verkey)
         LOGGER.info("Using Nym: %s", schema.issuer_id)
+        async with author_session.with_verkey(public_did.verkey) as author:
 
-        nym_response = await author.client.create_nym(
-            NAMESPACE,
-            verkey=public_did.verkey,
-            nym=schema.issuer_id[len(NAMESPACE)+10:],
-            taa=self.taa
-        )
+            # nym_response = await author.client.create_nym(
+            #     NAMESPACE,
+            #     verkey=public_did.verkey,
+            #     nym=schema.issuer_id[len(NAMESPACE)+10:],
+            #     taa=author_session.taa,
+            # )
+            # LOGGER.info("NYM created: %s", nym_response)
+            # schema.issuer_id = public_did.did
+            LOGGER.info("Registering schema: %s", schema)
 
-        schema_response = await author.register_schema(schema.to_native(), self.taa)
+            schema_response = await author.register_schema(schema.to_native(), author_session.taa)
+
+        LOGGER.info("Schema registered and saved to wallet: %s", schema_response)
+        
 
         return SchemaResult(
             job_id=uuid4().hex,
@@ -175,7 +172,7 @@ class IndyRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
                         name=schema_response.registration_metadata.txn.data.data.name,
                         version=schema_response.registration_metadata.txn.data.data.version,
                         attr_names=schema_response.registration_metadata.txn.data.data.attr_names,
-                        issuer_id=schema_response.schema_id.split(":")[0],
+                        issuer_id=schema_response.schema_id,
                     )),
             ),
             registration_metadata=schema_response.registration_metadata.model_dump(),
@@ -187,7 +184,9 @@ class IndyRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
     ) -> GetCredDefResult:
         """Get a credential definition from the registry."""
         LOGGER.info("ANONCREDS: get_credential_definition %s", credential_definition_id)
-        async with Ledger(self.pool) as ledger:
+        async with profile.session() as session:
+            ledger_pool = session.inject(LedgerPool)
+        async with Ledger(ledger_pool) as ledger:
             try:
                 cred_def_deref = await ledger.get_cred_def(credential_definition_id)
             except LedgerTransactionError as error:
@@ -223,7 +222,6 @@ class IndyRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
             credential_definition,
         )
         LOGGER.warning("Current DID: %s", credential_definition.issuer_id)
-
         async with profile.session() as session:
             wallet = session.inject(BaseWallet)
             if credential_definition.issuer_id:
@@ -233,28 +231,22 @@ class IndyRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
 
             if not public_did:
                 raise IndyRegistryError("No nym provided and public DID not set")
-
-        # Convert the verkey string to an Askar Key object
-        key = Key.from_secret_bytes(public_did.key_type._type, b58_to_bytes(public_did.verkey))
-        author = Author(self.client, AuthorDependenciesBasic(key, self.pool))
-        
+            author_session = session.inject(AuthorSession)
         LOGGER.info("Creating NYM with verkey: %s", public_did.verkey)
         LOGGER.info("Using Nym: %s", credential_definition.issuer_id)
+        async with author_session.with_verkey(public_did.verkey) as author:
+            LOGGER.info("Retrieving schema: %s", schema)
+            LOGGER.info("Registering credential definition: %s", credential_definition)
 
-        nym_response = await author.client.create_nym(
-            NAMESPACE,
-            verkey=public_did.verkey,
-            nym=credential_definition.issuer_id[len(NAMESPACE)+10:],
-            taa=self.taa,
-        )
-
-        cred_def_response = await author.register_cred_def(credential_definition.to_native(), self.taa)
+            cred_def_response = await author.register_cred_def(credential_definition.to_native(), author_session.taa)
+            LOGGER.info("Credential definition registered: %s", cred_def_response)
 
         return CredDefResult(
-            job_id=uuid4().hex,
+            # job_id=uuid4().hex,
+            None,  # Job ID is not used in this implementation
             credential_definition_state=CredDefState(
                 state=CredDefState.STATE_FINISHED,
-                credential_definition_id=cred_def_response.indy_cred_def_id,
+                credential_definition_id=cred_def_response.cred_def_id,
                 credential_definition=credential_definition,
             ),
             registration_metadata=cred_def_response.registration_metadata.model_dump(),
@@ -441,4 +433,15 @@ class IndyRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
     ) -> AnonCredsSchemaInfo:
         """Get a schema info from the registry."""
         LOGGER.info("ANONCREDS: get_schema_info_by_id %s", schema_id)
+        schema_results = await self.get_schema(profile, schema_id)
+        if not schema_results.schema:
+            raise IndyRegistryError(f"Schema with ID {schema_id} not found")
+        schema = schema_results.schema
+        schema_info = AnonCredsSchemaInfo(
+            issuer_id=schema.issuer_id,
+            name=schema.name,
+            version=schema.version,
+        )
+        LOGGER.info("Schema info retrieved: %s", schema_info)
+        return schema_info
         return await super().get_schema_info_by_id(profile, schema_id)

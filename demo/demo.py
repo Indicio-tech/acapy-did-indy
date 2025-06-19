@@ -6,15 +6,21 @@ from os import getenv
 
 from acapy_controller import Controller
 from acapy_controller.logging import logging_to_stdout, section
-from acapy_controller.protocols import indy_anoncred_onboard, didexchange, indy_anoncred_credential_artifacts, indy_issue_credential_v2
+from acapy_controller.protocols import indy_anoncred_onboard, didexchange, indy_anoncred_credential_artifacts, anoncreds_issue_credential_v2, DIDResult
 
 AGENT = getenv("AGENT", "http://localhost:3001")
 HOLDER = getenv("HOLDER", "http://localhost:3003")
+logging_to_stdout()
 
 
 async def main():
     async with Controller(AGENT) as controller, Controller(HOLDER) as holder:
-        did = await indy_anoncred_onboard(controller)
+        # did = await indy_anoncred_onboard(controller)
+        did = (await controller.post(
+            "/wallet/did/create",
+            json={"method": "sov", "options": {"key_type": "ed25519"}},
+            response=DIDResult,
+        )).result
         print(f"Did: {did}")
         did_indy_result = await controller.post(
             "/did/indy/from-nym",
@@ -45,7 +51,7 @@ async def main():
             print(json.dumps(cred_def.serialize(), indent=2))
 
         with section("Issue Credential to Holder"):
-            holder_cred_ex, _ = await indy_issue_credential_v2(
+            holder_cred_ex, _ = await anoncreds_issue_credential_v2(
                 controller,
                 holder,
                 agent_conn.connection_id,

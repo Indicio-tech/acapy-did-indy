@@ -1,5 +1,5 @@
 # FROM ghcr.io/openwallet-foundation/acapy-agent:py3.12-1.2.2
-FROM ghcr.io/openwallet-foundation/acapy-agent:py3.12-nightly
+FROM ghcr.io/openwallet-foundation/acapy-agent:py3.12-nightly-2025-06-10
 #FROM acapy-vcdm
 # FROM acapy:dev
 
