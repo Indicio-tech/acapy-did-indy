@@ -45,30 +45,15 @@ async def setup(context: InjectionContext):
     resolver = context.inject(DIDResolver)
     resolver.register_resolver(indy_resolver)
 
-    admin = IndyDriverAdminClient(DRIVER, admin_api_key="insecure-api-key")
-    token = (
-        await admin.create_client(
-            "test",
-            schemas=True,
-            cred_defs=True,
-            # new_nyms=True,
-            # nym_updates=True,
-        )
-    )
-    # client = IndyDriverClient(DRIVER, client_token=token)
-    # token = token if API_KEY is None else API_KEY
-    LOGGER.debug("[CW] Using API key: %s", token)
-    token = token.token
-
-    if token is None:
+    if API_KEY is None:
         LOGGER.error("No API key found. Please provide an API key using the `API_KEY` environment variable.")
         return
 
-    client = IndyDriverClient(DRIVER, client_token=token)
+    client = IndyDriverClient(DRIVER, client_api_key=API_KEY)
     context.injector.bind_provider(IndyDriverClient, ClassProvider(
         "did_indy.client.client.IndyDriverClient",
         driver_url=DRIVER,
-        client_token=token,
+        client_api_key=API_KEY,
     ))
     NAMESPACE = "indicio:test"
     taa_info = await client.get_taa(NAMESPACE)
