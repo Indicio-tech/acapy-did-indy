@@ -51,7 +51,7 @@ async def main():
             print(json.dumps(cred_def.serialize(), indent=2))
 
         with section("Issue Credential to Holder"):
-            holder_cred_ex, _ = await anoncreds_issue_credential_v2(
+            issuer_cred_ex, holder_cred_ex = await anoncreds_issue_credential_v2(
                 controller,
                 holder,
                 agent_conn.connection_id,
@@ -60,6 +60,15 @@ async def main():
                 {"firstname": "Holder", "lastname": "test"}
             )
             print(json.dumps(holder_cred_ex.serialize(), indent=2))
+        print("Successfully issued credential to holder!")
+        print("You can now use the issued credential in the holder agent.")
+        print("Holder Credential Exchange ID:", holder_cred_ex.cred_ex_record.cred_ex_id)
+        print("Issuer Credential Exchange ID:", issuer_cred_ex.cred_ex_record.cred_ex_id)
+        print("Credential Definition ID:", cred_def.credential_definition_id)
+        print("Schema ID:", schema.schema_id)
+        print("DID Indy:", did_indy)
+        # print("Holder Credential Attributes:")
+        # print(json.dumps(holder_cred_ex.cred_ex_record.credential_attributes, indent=2))
 
 if __name__ == "__main__":
     asyncio.run(main())

@@ -24,8 +24,7 @@ import base58
 from indy_vdr import ledger
 from pydid.verification_method import Ed25519VerificationKey2020
 from did_indy.client.client import IndyDriverClient
-from did_indy.ledger import Ledger, LedgerPool, LedgerTransactionError
-from did_indy.author.author import Author, AuthorDependencies
+from did_indy.ledger import LedgerPool
 
 from .did import INDY
 from .author import AuthorSession
@@ -187,7 +186,7 @@ class IndyRegistrar:
             # )
             # base_ledger = session.inject(BaseLedger)
             # async with base_ledger:
-            #     await base_ledger.txn_submit(nym_txn, sign=True, sign_did=public_did)
+            #     await base_ledger.txn_submit(nym_txn.body, sign=True, sign_did=public_did)
             #     attrib_txn = ledger.build_attrib_request(
             #         public_did.did,
             #         public_did.did,

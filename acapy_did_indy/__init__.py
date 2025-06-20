@@ -7,16 +7,11 @@ from acapy_agent.config.injection_context import InjectionContext
 from acapy_agent.wallet.did_method import DIDMethods
 from acapy_agent.resolver.did_resolver import DIDResolver
 from acapy_agent.anoncreds.registry import AnonCredsRegistry
-from acapy_agent.config.provider import ClassProvider, BaseProvider
-from acapy_agent.wallet.base import BaseWallet
-from acapy_agent.config.base import BaseSettings, BaseInjector
-from acapy_agent.core.error import BaseError
+from acapy_agent.config.provider import ClassProvider
 
-from did_indy.ledger import LedgerPool, fetch_genesis_transactions, BaseLedger
+from did_indy.ledger import LedgerPool, fetch_genesis_transactions
 from did_indy.client.client import IndyDriverAdminClient, IndyDriverClient
 from did_indy.cache import BasicCache
-from did_indy.author.author import Author, AuthorDependencies
-from aries_askar import Key
 from acapy_agent.core.profile import Profile
 
 from .did import INDY
@@ -73,13 +68,7 @@ async def setup(context: InjectionContext):
     NAMESPACE = "indicio:test"
     taa_info = await client.get_taa(NAMESPACE)
     taa = await client.accept_taa(taa_info, "on_file")
-    # pool = LedgerPool(
-    #     NAMESPACE,
-    #     genesis_transactions=await fetch_genesis_transactions(
-    #         "https://raw.githubusercontent.com/Indicio-tech/indicio-network/main/genesis_files/pool_transactions_testnet_genesis"
-    #     ),
-    #     cache=BasicCache(),
-    # )
+
     context.injector.bind_provider(LedgerPool, ClassProvider(
         "did_indy.ledger.LedgerPool",
         name=NAMESPACE,
@@ -95,16 +84,6 @@ async def setup(context: InjectionContext):
         pool=ClassProvider.Inject(LedgerPool),
         profile=ClassProvider.Inject(Profile),
     ))
-    # context.injector.bind_provider(
-    #     AuthorSession,
-    #     ClassProvider(
-    #         "acapy_did_indy.author.AuthorSession",
-    #         client=client,
-    #         taa=taa,
-    #         pool=context.injector.inject(LedgerPool),
-    #         profile=context.injector.inject(Profile),
-    #     )
-    # )
 
     indy_registry = IndyRegistry(client)
     context.injector.bind_instance(
