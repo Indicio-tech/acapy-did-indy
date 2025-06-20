@@ -14,23 +14,6 @@ from did_indy.signer import Signer
 from did_indy.author.author import Author, AuthorDependencies
 from acapy_agent.core.profile import Profile
 
-from did_indy.client import http
-import json
-
-original_deserialize = http._deserialize
-
-def patched_deserialize(body, response_type):
-    if hasattr(response_type, '__name__') and response_type.__name__ == 'NymResponse':
-        if isinstance(body, dict) and 'diddocContent' in body and isinstance(body['diddocContent'], str):
-            body = body.copy()
-            try:
-                body['diddocContent'] = json.loads(body['diddocContent'])
-            except json.JSONDecodeError:
-                # If it's not valid JSON, leave it as string and let validation fail normally
-                pass
-    return original_deserialize(body, response_type)
-
-http._deserialize = patched_deserialize
 
 DRIVER = getenv("DRIVER", "http://driver")
 API_KEY = getenv("API_KEY", None)
@@ -63,6 +46,7 @@ class AuthorSession:
         self._author: Author
 
     def with_verkey(self, verkey: str) -> "AuthorSession":
+
         async def sign_transaction(message: bytes) -> bytes:
             """Sign a message."""
             async with self._profile.session() as session:
