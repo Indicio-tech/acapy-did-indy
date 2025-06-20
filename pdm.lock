@@ -120,7 +120,7 @@ name = "did-indy-py"
 version = "0.1.0"
 requires_python = ">=3.12"
 git = "https://github.com/Indicio-tech/did-indy-py.git"
-revision = "bf308b71c30746e1392806f078b41e77dd5ac0c8"
+revision = "8f0cfc747e23674902dd0d227b3e1034884e1dc7"
 summary = "did:indy library including a driver implementing the DID Registration Interface"
 groups = ["default"]
 dependencies = [
@@ -133,7 +133,7 @@ version = "0.1.0"
 extras = ["client", "demo", "driver"]
 requires_python = ">=3.12"
 git = "https://github.com/Indicio-tech/did-indy-py.git"
-revision = "bf308b71c30746e1392806f078b41e77dd5ac0c8"
+revision = "8f0cfc747e23674902dd0d227b3e1034884e1dc7"
 summary = "did:indy library including a driver implementing the DID Registration Interface"
 groups = ["default"]
 dependencies = [
