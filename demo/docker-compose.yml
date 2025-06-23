@@ -32,6 +32,7 @@ services:
         --log-level debug
         --debug-webhooks
         --plugin acapy_did_indy
+        --plugin-config-value acapy_did_indy.api_key=insecure-api-key
         --plugin-config-value acapy_did_indy.indy_namespace=indicio:test
         --plugin-config-value acapy_did_indy.ledgers."indicio:test"=https://raw.githubusercontent.com/Indicio-tech/indicio-network/main/genesis_files/pool_transactions_testnet_genesis
     healthcheck:
@@ -76,6 +77,7 @@ services:
         --log-level debug
         --debug-webhooks
         --plugin acapy_did_indy
+        --plugin-config-value acapy_did_indy.api_key=insecure-api-key
         --plugin-config-value acapy_did_indy.indy_namespace=indicio:test
         --plugin-config-value acapy_did_indy.ledgers."indicio:test"=https://raw.githubusercontent.com/Indicio-tech/indicio-network/main/genesis_files/pool_transactions_testnet_genesis
     healthcheck:
@@ -106,7 +108,7 @@ services:
     environment:
       ISSUER: "http://driver"
       PASSPHRASE: "insecure-passphrase"
-      AUTH: "client-tokens"
+      AUTH: "api-key"
       CLIENT_TOKEN_SECRET: "insecure-secret"
       ADMIN_API_KEY: "insecure-api-key"
       LOG_LEVEL: "DEBUG"

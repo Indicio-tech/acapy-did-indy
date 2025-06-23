@@ -28,6 +28,8 @@ API_KEY = getenv("API_KEY", None)
 LOGGER = logging.getLogger(__name__)
 
 async def setup(context: InjectionContext):
+    LOGGER.log(1, "starting setup for acapy_did_indy plugin")
+    
     registry = context.inject_or(AnonCredsRegistry)
     if not registry:
         LOGGER.error("No AnonCredsRegistry instance found in context!!!")
@@ -40,8 +42,9 @@ async def setup(context: InjectionContext):
     resolver = context.inject(DIDResolver)
     resolver.register_resolver(indy_resolver)
 
+    API_KEY = context.settings.for_plugin("acapy_did_indy").get("api_key")
     if API_KEY is None:
-        LOGGER.error("No API key found. Please provide an API key using the `API_KEY` environment variable.")
+        LOGGER.error("No API key found. Please provide an API key using the `api_key` ACA-py plugin variable.")
         return
 
     client = IndyDriverClient(DRIVER, client_api_key=API_KEY)
@@ -85,3 +88,5 @@ async def setup(context: InjectionContext):
     ).provide(context.settings, context.injector)
     await indy_registry.setup(context)
     registry.register(indy_registry)
+
+    LOGGER.log(1, "acapy_did_indy plugin setup complete")
