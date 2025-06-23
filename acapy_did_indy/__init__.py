@@ -23,12 +23,12 @@ from .resolver import IndyResolver
 
 
 DRIVER = getenv("DRIVER", "http://driver")
-API_KEY = getenv("API_KEY", None)
 
 LOGGER = logging.getLogger(__name__)
 
 async def setup(context: InjectionContext):
-    LOGGER.log(1, "starting setup for acapy_did_indy plugin")
+    LOGGER.debug("Starting setup for acapy_did_indy plugin")
+    plugin_settings = context.settings.for_plugin("acapy_did_indy")
     
     registry = context.inject_or(AnonCredsRegistry)
     if not registry:
@@ -42,7 +42,7 @@ async def setup(context: InjectionContext):
     resolver = context.inject(DIDResolver)
     resolver.register_resolver(indy_resolver)
 
-    API_KEY = context.settings.for_plugin("acapy_did_indy").get("api_key")
+    API_KEY = plugin_settings.get("api_key")
     if API_KEY is None:
         LOGGER.error("No API key found. Please provide an API key using the `api_key` ACA-py plugin variable.")
         return
@@ -53,7 +53,13 @@ async def setup(context: InjectionContext):
         driver_url=DRIVER,
         client_api_key=API_KEY,
     ))
-    NAMESPACE = "indicio:test"
+
+    NAMESPACE = plugin_settings.get("indy_namespace")
+    if NAMESPACE is None:
+        LOGGER.error("Indy namespace not specified. Please do so using the `indy_namespace` ACA-py plugin variable.")
+        return 
+    LOGGER.debug("Using indy namespace " + NAMESPACE)
+
     taa_info = await client.get_taa(NAMESPACE)
     taa = await client.accept_taa(taa_info, "on_file")
 
@@ -89,4 +95,4 @@ async def setup(context: InjectionContext):
     await indy_registry.setup(context)
     registry.register(indy_registry)
 
-    LOGGER.log(1, "acapy_did_indy plugin setup complete")
+    LOGGER.debug("acapy_did_indy plugin setup complete")

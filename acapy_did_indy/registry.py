@@ -21,6 +21,7 @@ from acapy_agent.anoncreds.models.revocation import (
     RevList,
     RevListResult,
     RevRegDef,
+    RevRegDefValue,
     RevRegDefResult,
     RevRegDefState,
     RevListState,
@@ -44,9 +45,6 @@ from uuid import uuid4
 
 
 LOGGER = logging.getLogger(__name__)
-
-# TODO: FIX
-NAMESPACE = "indicio:test"
 
 class IndyRegistryError(BaseError):
     """Raised on errors in registrar."""
@@ -226,7 +224,32 @@ class IndyRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
         LOGGER.debug(
             "ANONCREDS: get_revocation_registry_definition %s", revocation_registry_id
         )
-        raise NotImplementedError()
+        async with profile.session() as session:
+            ledger_pool = session.inject(LedgerPool)
+        async with Ledger(ledger_pool) as ledger:
+            try:
+                rev_reg_def_deref = await ledger.get_rev_reg_def(revocation_registry_id)
+            except LedgerTransactionError as error:
+                LOGGER.exception("Failed to retrieve revocation registry definition")
+                raise IndyRegistryError(f"Cannot retrieve revocation registry definition: {error}") from error
+
+        return GetRevRegDefResult(
+            revocation_registry_id=revocation_registry_id,
+            revocation_registry=RevRegDef(
+                issuer_id="", # TODO
+                type="CL_ACCUM",
+                cred_def_id="",
+                tag="",
+                value=RevRegDefValue(
+                    public_keys=rev_reg_def_deref.contentStream,
+                    max_cred_num=None,
+                    tails_location=None,
+                    tails_hash=None,
+                ),
+            ),
+            resolution_metadata=rev_reg_def_deref.dereferencingMetadata,
+            revocation_registry_metadata=rev_reg_def_deref.contentMetadata.model_dump(),
+        )
 
     async def register_revocation_registry_definition(
         self,
