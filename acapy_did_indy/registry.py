@@ -14,6 +14,7 @@ from acapy_agent.anoncreds.models.credential_definition import (
     CredDefState,
     CredDefValue,
     CredDefValuePrimary,
+    CredDefValueRevocation,
 )
 from acapy_agent.anoncreds.models.revocation import (
     GetRevListResult,
@@ -167,7 +168,7 @@ class IndyRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
                 tag=cred_def_deref.contentMetadata.nodeResponse.result.tag,
                 value=CredDefValue(
                     primary=CredDefValuePrimary.deserialize(cred_def_deref.contentStream.primary),
-                    revocation=None, # TODO
+                    revocation=CredDefValueRevocation.deserialize(cred_def_deref.contentStream.revocation, none2none=True),
                 ),
             ),
             resolution_metadata=cred_def_deref.dereferencingMetadata,
@@ -238,13 +239,13 @@ class IndyRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
             revocation_registry=RevRegDef(
                 issuer_id="", # TODO
                 type="CL_ACCUM",
-                cred_def_id="",
-                tag="",
+                cred_def_id=rev_reg_def_deref.contentStream.cred_def_id,
+                tag=rev_reg_def_deref.contentStream.tag,
                 value=RevRegDefValue(
-                    public_keys=rev_reg_def_deref.contentStream,
-                    max_cred_num=None,
-                    tails_location=None,
-                    tails_hash=None,
+                    public_keys=rev_reg_def_deref.contentStream.value.public_keys,
+                    max_cred_num=rev_reg_def_deref.contentStream.value.max_cred_num,
+                    tails_location=rev_reg_def_deref.contentStream.value.tails_location,
+                    tails_hash=rev_reg_def_deref.contentStream.value.tails_hash,
                 ),
             ),
             resolution_metadata=rev_reg_def_deref.dereferencingMetadata,
