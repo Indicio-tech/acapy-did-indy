@@ -47,11 +47,7 @@ async def setup(context: InjectionContext):
     DRIVER = plugin_settings.get("driver_uri", "http://driver")
 
     client = IndyDriverClient(DRIVER, client_api_key=API_KEY)
-    context.injector.bind_provider(IndyDriverClient, ClassProvider(
-        "did_indy.client.client.IndyDriverClient",
-        driver_url=DRIVER,
-        client_api_key=API_KEY,
-    ))
+    context.injector.bind_instance(IndyDriverClient, client)
 
     NAMESPACE = plugin_settings.get("indy_namespace")
     if NAMESPACE is None:
