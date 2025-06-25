@@ -16,18 +16,18 @@ logging_to_stdout()
 async def main():
     async with Controller(AGENT) as controller, Controller(HOLDER) as holder:
         # did = await indy_anoncred_onboard(controller)
-        did = (await controller.post(
-            "/wallet/did/create",
-            json={"method": "sov", "options": {"key_type": "ed25519"}},
-            response=DIDResult,
-        )).result
-        print(f"Did: {did}")
+        # did = (await controller.post(
+        #     "/wallet/did/create",
+        #     json={"method": "sov", "options": {"key_type": "ed25519"}},
+        #     response=DIDResult,
+        # )).result
+        # print(f"Did: {did}")
         did_indy_result = await controller.post(
-            "/did/indy/from-nym",
+            "/did/indy/new-did",
             json={
                 "ldp_vc": True,
                 "didcomm": True,
-                "nym": did.did,
+                # "nym": did.did,
             }
         )
         did_indy = did_indy_result["did"]
