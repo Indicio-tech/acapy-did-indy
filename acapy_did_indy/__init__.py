@@ -45,6 +45,7 @@ async def setup(context: InjectionContext):
         return
 
     DRIVER = plugin_settings.get("driver_uri", "http://driver")
+    LOGGER.debug("Using driver endpoint " + DRIVER)
 
     client = IndyDriverClient(DRIVER, client_api_key=API_KEY)
     context.injector.bind_instance(IndyDriverClient, client)
