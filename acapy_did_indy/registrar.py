@@ -157,21 +157,9 @@ class IndyRegistrar:
             if didcomm:
                 services = await self.prepare_didcomm_services(profile, mediation_records)
                 doc_content["service"] = services
-            async with profile.session() as session:
-                author_session = session.inject(AuthorSession)
-                async with author_session.with_verkey(public_did.verkey) as author:
-                    author = author_session.get_author()
-                ledger_response = await author.client.create_nym(
-                    namespace=self.namespace,
-                    verkey=verkey,
-                    # nym=public_did.did,
-                    diddoc_content=json.dumps(doc_content),
-                    taa=author_session.taa,
-                    # version=1,
-                )
-                LOGGER.debug("DID:Indy Nym creation response: %s", ledger_response)
+
             did_info = DIDInfo(
-                did=ledger_response.did,
+                did=did,
                 verkey=verkey,
                 metadata={
                     "namespace": self.namespace,
@@ -181,19 +169,19 @@ class IndyRegistrar:
             )
             await wallet.store_did(did_info)
 
-            # nym_txn = ledger.build_nym_request(
-            #     public_did.did, public_did.did, diddoc_content=json.dumps(doc_content)
-            # )
-            # base_ledger = session.inject(BaseLedger)
-            # async with base_ledger:
-            #     await base_ledger.txn_submit(nym_txn.body, sign=True, sign_did=public_did)
-            #     attrib_txn = ledger.build_attrib_request(
-            #         public_did.did,
-            #         public_did.did,
-            #         xhash=None,
-            #         raw=json.dumps({"diddocContent": doc_content}),
-            #         enc=None,
-            #     )
-            #     await base_ledger.txn_submit(attrib_txn, sign=True, sign_did=public_did)
+            nym_txn = ledger.build_nym_request(
+                public_did.did, public_did.did, diddoc_content=json.dumps(doc_content)
+            )
+            base_ledger = session.inject(BaseLedger)
+            async with base_ledger:
+                await base_ledger.txn_submit(nym_txn.body, sign=True, sign_did=public_did)
+                attrib_txn = ledger.build_attrib_request(
+                    public_did.did,
+                    public_did.did,
+                    xhash=None,
+                    raw=json.dumps({"diddocContent": doc_content}),
+                    enc=None,
+                )
+                await base_ledger.txn_submit(attrib_txn, sign=True, sign_did=public_did)
 
             return did_info
