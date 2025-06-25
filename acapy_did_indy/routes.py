@@ -55,6 +55,49 @@ class CreateDIDResponseSchema(OpenAPISchema):
 )
 @request_schema(CreateDIDIndyRequestSchema())
 @response_schema(CreateDIDResponseSchema())
+async def create_new_did_indy(request: web.Request):
+    """Route for creating a version 2 did for did:indy."""
+
+    context: AdminRequestContext = request["context"]
+    registrar = context.inject(IndyRegistrar)
+
+    body = await request.json()
+    ldp_vc = body.get("ldp_vc", False)
+    didcomm = body.get("didcomm", True)
+    mediation_id = body.get("mediation_id")
+
+    if mediation_id and not didcomm:
+        raise web.HTTPBadRequest(reason="mediation_id set but didcomm is not set")
+
+    route_manager = context.inject(RouteManager)
+    try:
+        mediation_record = await route_manager.mediation_record_if_id(
+            profile=context.profile,
+            mediation_id=mediation_id,
+            or_default=didcomm,
+        )
+    except StorageNotFoundError:
+        raise web.HTTPNotFound(reason=f"No mediation record with id {mediation_id}")
+
+    try:
+        did_info = await registrar.create_new_nym(
+            context.profile,
+            didcomm=didcomm,
+            ldp_vc=ldp_vc,
+            mediation_records=[mediation_record] if mediation_record else None,
+        )
+    except Exception:
+        raise web.HTTPInternalServerError(reason="Could not create did:indy from public nym")
+
+    return web.json_response({"did": did_info.did})
+
+
+@docs(
+    tags=["did"],
+    summary="Create DID Indy.",
+)
+@request_schema(CreateDIDIndyRequestSchema())
+@response_schema(CreateDIDResponseSchema())
 async def create_did_indy(request: web.Request):
     """Route for creating a did:indy."""
 
@@ -98,6 +141,7 @@ async def register(app: web.Application):
     """Register routes."""
     app.add_routes(
         [
+            web.post("/did/indy/new-did", create_new_did_indy),
             web.post("/did/indy/from-nym", create_did_indy),
         ]
     )

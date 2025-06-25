@@ -98,6 +98,86 @@ class IndyRegistrar:
             )
         return services
 
+    async def create_new_nym(
+        self,
+        profile: Profile,
+        *,
+        didcomm: bool = True,
+        ldp_vc: bool = False,
+        mediation_records: List[MediationRecord] | None = None
+    ) -> DIDInfo:
+        LOGGER.info("DID:Indy Creating did:indy from public nym")
+        """Create a new did:indy and publish it to the ledger."""
+        if mediation_records and not didcomm:
+            raise ValueError("Mediation records passed but didcomm flag not set")
+
+        async with profile.session() as session:
+            wallet = session.inject(BaseWallet)
+            from hashlib import sha256
+            key = await wallet.create_key(key_type=ED25519)
+            pub_verkey = base58.b58decode(key.verkey)
+            digest = sha256(pub_verkey).digest()[:16]
+
+            new_nym = base58.b58encode(digest).decode()
+            did = f"did:indy:{self.namespace}:{new_nym}"
+
+            # Exists?
+            try:
+                previous = await wallet.get_local_did(did)
+                return previous
+            except WalletNotFoundError:
+                pass
+
+            # Enable ldp-vc issuance?
+            verkey = key.verkey
+            if ldp_vc:
+                kid = f"{did}#assert"
+                # key = await wallet.create_key(key_type=ED25519, kid=kid)
+                public_key_multibase = multibase.encode(
+                    multicodec.wrap("ed25519-pub", base58.b58decode(key.verkey)),
+                    "base58btc",
+                )
+                # verkey = key.verkey
+                vm = Ed25519VerificationKey2020.make(
+                    id=kid, controller=did, public_key_multibase=public_key_multibase
+                )
+                doc_content = {
+                    "@context": ["https://w3id.org/security/suites/ed25519-2020/v1"],
+                    "verificationMethod": [vm.serialize()],
+                    "assertionMethod": [vm.id],
+                }
+            else:
+                doc_content = {}
+
+            if didcomm:
+                services = await self.prepare_didcomm_services(profile, mediation_records)
+                doc_content["service"] = services
+            async with profile.session() as session:
+                author_session = session.inject(AuthorSession)
+                async with author_session.with_verkey(key.verkey) as author:
+                    author = author_session.get_author()
+                ledger_response = await author.client.create_nym(
+                    namespace=self.namespace,
+                    verkey=verkey,
+                    nym=new_nym,
+                    diddoc_content=json.dumps(doc_content),
+                    taa=author_session.taa,
+                    # version=1,
+                )
+                LOGGER.debug("DID:Indy Nym creation response: %s", ledger_response)
+            did_info = DIDInfo(
+                did=ledger_response.did,
+                verkey=verkey,
+                metadata={
+                    "namespace": self.namespace,
+                },
+                method=INDY,
+                key_type=ED25519,
+            )
+            await wallet.store_did(did_info)
+
+            return did_info
+
     async def from_public_nym(
         self,
         profile: Profile,
