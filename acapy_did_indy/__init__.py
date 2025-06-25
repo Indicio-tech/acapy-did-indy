@@ -21,9 +21,6 @@ from .registry import IndyRegistry
 from .resolver import IndyResolver
 
 
-
-DRIVER = getenv("DRIVER", "http://driver")
-
 LOGGER = logging.getLogger(__name__)
 
 async def setup(context: InjectionContext):
@@ -46,6 +43,8 @@ async def setup(context: InjectionContext):
     if API_KEY is None:
         LOGGER.error("No API key found. Please provide an API key using the `api_key` ACA-py plugin variable.")
         return
+
+    DRIVER = plugin_settings.get("driver_uri", "http://driver")
 
     client = IndyDriverClient(DRIVER, client_api_key=API_KEY)
     context.injector.bind_provider(IndyDriverClient, ClassProvider(
