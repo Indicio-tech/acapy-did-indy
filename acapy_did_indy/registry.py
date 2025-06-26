@@ -34,6 +34,7 @@ from acapy_agent.anoncreds.models.schema import (
     SchemaState,
 )
 from acapy_agent.anoncreds.models.schema_info import AnonCredsSchemaInfo
+from did_indy.anoncreds import make_indy_schema_id
 from did_indy.client.client import IndyDriverClient
 from did_indy.ledger import Ledger, LedgerPool, LedgerTransactionError
 from acapy_agent.wallet.base import BaseWallet
@@ -159,11 +160,18 @@ class IndyRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
                 LOGGER.exception("Failed to retrieve credential definition")
                 raise IndyRegistryError(f"Cannot retrieve credential definition: {error}") from error
 
+            pool_name = ledger.pool.name
+
+        issuer_id = credential_definition_id.split("/", maxsplit=1)[0]
         return GetCredDefResult(
             credential_definition_id=credential_definition_id,
             credential_definition=CredDef(
-                issuer_id="", # TODO
-                schema_id="", # TODO
+                issuer_id=issuer_id,
+                schema_id=make_indy_schema_id(
+                    issuer_id=issuer_id,
+                    name=pool_name,
+                    version="v0",  # TODO: is this right?
+                ),
                 type=cred_def_deref.contentMetadata.nodeResponse.result.signature_type,
                 tag=cred_def_deref.contentMetadata.nodeResponse.result.tag,
                 value=CredDefValue(
@@ -237,7 +245,7 @@ class IndyRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
         return GetRevRegDefResult(
             revocation_registry_id=revocation_registry_id,
             revocation_registry=RevRegDef(
-                issuer_id="", # TODO
+                issuer_id=revocation_registry_id.split("/", maxsplit=1)[0], # TODO
                 type="CL_ACCUM",
                 cred_def_id=rev_reg_def_deref.contentStream.cred_def_id,
                 tag=rev_reg_def_deref.contentStream.tag,
