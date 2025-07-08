@@ -25,5 +25,5 @@ RUN curl -sSL https://pdm-project.org/install-pdm.py | python3 - -p  /opt/pdm \
 
 COPY pyproject.toml pdm.lock ./
 RUN pdm config python.use_venv false \
-    && pdm install --global --no-self --no-editable -G did_web_server -G demo -G acapy \
+    && pdm install --global --no-self --no-editable -G:all \
     && rm -rf /root/.cache/pypoetry

@@ -2,8 +2,9 @@
 
 import logging
 import json
-from os import getenv
 from typing import List
+import base58
+from hashlib import sha256
 
 from acapy_agent.config.settings import Settings
 from acapy_agent.core.error import BaseError
@@ -20,11 +21,10 @@ from acapy_agent.wallet.base import BaseWallet
 from acapy_agent.wallet.did_info import DIDInfo
 from acapy_agent.wallet.error import WalletNotFoundError
 from acapy_agent.wallet.key_type import ED25519
-import base58
-from indy_vdr import ledger
-from pydid.verification_method import Ed25519VerificationKey2020
 from did_indy.client.client import IndyDriverClient
 from did_indy.ledger import LedgerPool
+from indy_vdr import ledger
+from pydid.verification_method import Ed25519VerificationKey2020
 
 from .did import INDY
 from .author import AuthorSession
@@ -41,17 +41,11 @@ class IndyRegistrar:
     def __init__(
             self,
             settings: Settings,
-            client: IndyDriverClient | None = None,
-            pool: LedgerPool | None = None,
-            taa: dict | None = None,
         ):
         """Initialize the registrar."""
         LOGGER.info("DID:Indy Initializing did:indy registrar")
         config = settings.for_plugin("acapy_did_indy")
-        namespace = config.get("indy_namespace") or getenv("INDY_NAMESPACE")
-        self.client = client
-        self.pool = pool
-        self.taa = taa
+        namespace = config.get("indy_namespace")
 
         if not namespace:
             raise IndyRegistrarError("Namespace is not configured; cannot init registrar")
@@ -113,7 +107,6 @@ class IndyRegistrar:
 
         async with profile.session() as session:
             wallet = session.inject(BaseWallet)
-            from hashlib import sha256
             key = await wallet.create_key(key_type=ED25519)
             pub_verkey = base58.b58decode(key.verkey)
             digest = sha256(pub_verkey).digest()[:16]
@@ -161,7 +154,7 @@ class IndyRegistrar:
                     verkey=verkey,
                     nym=new_nym,
                     diddoc_content=json.dumps(doc_content),
-                    taa=author_session.taa,
+                    taa=await author_session.get_taa(self.namespace),
                     # version=1,
                 )
                 LOGGER.debug("DID:Indy Nym creation response: %s", ledger_response)

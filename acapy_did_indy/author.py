@@ -1,8 +1,7 @@
 """did:indy support."""
 
 import logging
-from typing import cast
-from os import getenv
+from typing import cast, Optional
 
 from acapy_agent.wallet.base import BaseWallet
 from acapy_agent.core.error import BaseError
@@ -14,9 +13,8 @@ from did_indy.signer import Signer
 from did_indy.author.author import Author, AuthorDependencies
 from acapy_agent.core.profile import Profile
 
+from .taa_storage import get_taa_acceptance
 
-DRIVER = getenv("DRIVER", "http://driver")
-API_KEY = getenv("API_KEY", None)
 
 LOGGER = logging.getLogger(__name__)
 
@@ -38,11 +36,10 @@ class AuthorDependenciesBasic(AuthorDependencies):
 
 
 class AuthorSession:
-    def __init__(self, profile: Profile, client: IndyDriverClient, pool: LedgerPool, taa: TaaAcceptance | None):
+    def __init__(self, profile: Profile, client: IndyDriverClient, pool: LedgerPool):
         self.client = client
         self._pool = pool
         self._profile = profile
-        self.taa = taa
         self._author: Author
 
     def with_verkey(self, verkey: str) -> "AuthorSession":
@@ -55,13 +52,35 @@ class AuthorSession:
         dependencies = AuthorDependenciesBasic(cast(Signer, sign_transaction), self._pool)
         self._author = Author(self.client, dependencies)
         return self
-    
+
     def get_author(self) -> Author:
         return self._author
 
     async def __aenter__(self) -> Author:
         return self.get_author()
-    
+
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         # self._author = None
         pass
+
+    async def get_taa(self, namespace: Optional[str] = None) -> Optional[TaaAcceptance]:
+        """Get a Transaction Author Agreement from storage.
+
+        Args:
+            namespace: The namespace to retrieve TAA for. If not provided,
+                      uses the pool's namespace
+
+        Returns:
+            The TAA acceptance record if found, None otherwise
+        """
+        if namespace is None:
+            # Use the pool's namespace
+            namespace = self._pool.name
+
+        # Retrieve the TAA from storage
+        taa_record = await get_taa_acceptance(self._profile, namespace)
+        return TaaAcceptance(
+            taaDigest=taa_record.digest,
+            mechanism=taa_record.mechanism,
+            time=taa_record.accepted_at
+        ) if taa_record else None

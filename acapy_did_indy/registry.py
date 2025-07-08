@@ -36,7 +36,7 @@ from acapy_agent.anoncreds.models.schema import (
 from acapy_agent.anoncreds.models.schema_info import AnonCredsSchemaInfo
 from did_indy.anoncreds import make_indy_schema_id
 from did_indy.client.client import IndyDriverClient
-from did_indy.ledger import Ledger, LedgerPool, LedgerTransactionError
+from did_indy.ledger import Ledger, LedgerPool, LedgerTransactionError, TAAInfo, TaaAcceptance
 from acapy_agent.wallet.base import BaseWallet
 from acapy_agent.core.error import BaseError
 from .author import AuthorSession
@@ -63,7 +63,6 @@ class IndyRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
 
         """
         self._supported_identifiers_regex = re.compile(r"^did:indy:.+$")
-        self.client = client
 
     @property
     def supported_identifiers_regex(self) -> Pattern:
@@ -74,10 +73,48 @@ class IndyRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
         """Setup."""
         LOGGER.info("Successfully registered DIDIndyRegistry")
 
+    async def get_namespaces(self, profile: Profile) -> list:
+        """Get available namespaces (ledgers).
+
+        Returns:
+            A list of available namespaces
+        """
+        async with profile.session() as session:
+            client = session.inject(IndyDriverClient)
+        return await client.get_namespaces()
+
+    async def get_taa(self, profile: Profile, namespace: str) -> TAAInfo:
+        """Get transaction author agreement for a specific namespace.
+
+        Args:
+            namespace: The namespace to get the TAA for
+
+        Returns:
+            TAA information for the namespace
+        """
+        async with profile.session() as session:
+            client = session.inject(IndyDriverClient)
+        return await client.get_taa(namespace)
+
+    async def accept_taa(self, profile: Profile, taa_info: dict, mechanism: str = "on_file") -> TaaAcceptance | None:
+        """Accept transaction author agreement.
+
+        Args:
+            taa_info: TAA information returned from get_taa
+            mechanism: Acceptance mechanism, defaults to "on_file"
+
+        Returns:
+            Acceptance information
+        """
+        async with profile.session() as session:
+            client = session.inject(IndyDriverClient)
+
+        return await client.accept_taa(TAAInfo.model_validate(taa_info), mechanism)
+
     async def get_schema(self, profile: Profile, schema_id: str) -> GetSchemaResult:
         """Get a schema from the registry."""
         LOGGER.debug("ANONCREDS: get_schema %s", schema_id)
-        
+
         async with profile.session() as session:
             ledger_pool = session.inject(LedgerPool)
         async with Ledger(ledger_pool) as ledger:
@@ -124,7 +161,7 @@ class IndyRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
         async with author_session.with_verkey(public_did.verkey) as author:
 
             LOGGER.debug("Registering schema: %s", schema)
-            schema_response = await author.register_schema(schema.to_native(), author_session.taa)
+            schema_response = await author.register_schema(schema.to_native(), await author_session.get_taa())
 
         LOGGER.debug("Schema registered and saving to wallet: %s", schema_response)
         
@@ -211,7 +248,7 @@ class IndyRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
         async with author_session.with_verkey(public_did.verkey) as author:
 
             LOGGER.debug("Registering credential definition: %s", credential_definition)
-            cred_def_response = await author.register_cred_def(credential_definition.to_native(), author_session.taa)
+            cred_def_response = await author.register_cred_def(credential_definition.to_native(), await author_session.get_taa())
             LOGGER.debug("Credential definition registered: %s", cred_def_response)
 
         return CredDefResult(
@@ -288,7 +325,7 @@ class IndyRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
         async with author_session.with_verkey(public_did.verkey) as author:
 
             LOGGER.debug("Registering revocation registry definition: %s", revocation_registry_definition)
-            rev_reg_response = await author.register_rev_reg_def(revocation_registry_definition.to_native(), author_session.taa)
+            rev_reg_response = await author.register_rev_reg_def(revocation_registry_definition.to_native(), await author_session.get_taa())
             LOGGER.debug("Revocation registry definition registered: %s", rev_reg_response)
 
         return RevRegDefResult(
@@ -341,7 +378,7 @@ class IndyRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
         async with author_session.with_verkey(public_did.verkey) as author:
 
             LOGGER.debug("Registering revocation status list: %s", rev_reg_def)
-            rev_status_list_response = await author.register_rev_status_list(rev_list.to_native(), author_session.taa)
+            rev_status_list_response = await author.register_rev_status_list(rev_list.to_native(), await author_session.get_taa())
             LOGGER.debug("Revocation status list registered: %s", rev_status_list_response)
 
 
@@ -389,7 +426,7 @@ class IndyRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
                 prev_list=prev_list.to_native(),
                 curr_list=curr_list.to_native(),
                 revoked=list(revoked),
-                taa=author_session.taa,
+                taa=await author_session.get_taa(),
             )
             LOGGER.debug("Revocation status list updated: %s", rev_status_list_response)
 
