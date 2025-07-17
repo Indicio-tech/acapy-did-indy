@@ -62,16 +62,20 @@ async def setup(context: InjectionContext):
         ),
         cache=BasicCache()
     )
+    # We bind an instance to take advantage of the caching in LedgerPool
     context.injector.bind_instance(LedgerPool, ledger_pool)
 
     context.injector.bind_provider(AuthorSession, ClassProvider(
         "acapy_did_indy.author.AuthorSession",
         client=client,
-        pool=ClassProvider.Inject(LedgerPool),
+        pool=ledger_pool,
         profile=ClassProvider.Inject(Profile),
     ))
 
-    context.injector.bind_instance(ReadOnlyLedger, ReadOnlyLedger(ledger_pool))
+    context.injector.bind_provider(ReadOnlyLedger, ClassProvider(
+        "did_indy.ledger.ReadOnlyLedger",
+        pool=ledger_pool
+    ))
 
     # Registrar
     context.injector.bind_instance(
