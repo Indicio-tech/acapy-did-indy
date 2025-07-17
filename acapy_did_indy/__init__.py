@@ -8,7 +8,7 @@ from acapy_agent.resolver.did_resolver import DIDResolver
 from acapy_agent.anoncreds.registry import AnonCredsRegistry
 from acapy_agent.config.provider import ClassProvider
 
-from did_indy.ledger import LedgerPool, fetch_genesis_transactions
+from did_indy.ledger import ReadOnlyLedger, LedgerPool, fetch_genesis_transactions
 from did_indy.client.client import IndyDriverClient
 from did_indy.cache import BasicCache
 from acapy_agent.core.profile import Profile
@@ -55,20 +55,23 @@ async def setup(context: InjectionContext):
         return 
     LOGGER.debug("Using indy namespace " + NAMESPACE)
 
-    context.injector.bind_provider(LedgerPool, ClassProvider(
-        "did_indy.ledger.LedgerPool",
+    ledger_pool = LedgerPool(
         name=NAMESPACE,
         genesis_transactions=await fetch_genesis_transactions(
             "https://raw.githubusercontent.com/Indicio-tech/indicio-network/main/genesis_files/pool_transactions_testnet_genesis"
         ),
-        cache=BasicCache(),
-    ))
+        cache=BasicCache()
+    )
+    context.injector.bind_instance(LedgerPool, ledger_pool)
+
     context.injector.bind_provider(AuthorSession, ClassProvider(
         "acapy_did_indy.author.AuthorSession",
         client=client,
         pool=ClassProvider.Inject(LedgerPool),
         profile=ClassProvider.Inject(Profile),
     ))
+
+    context.injector.bind_instance(ReadOnlyLedger, ReadOnlyLedger(ledger_pool))
 
     # Registrar
     context.injector.bind_instance(

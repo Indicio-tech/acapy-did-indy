@@ -118,9 +118,9 @@ class IndyRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
         LOGGER.debug("ANONCREDS: get_schema %s", schema_id)
 
         async with profile.session() as session:
-            ledger_pool = session.inject(LedgerPool)
+            ledger = session.inject(ReadOnlyLedger)
 
-        async with ReadOnlyLedger(ledger_pool) as ledger:
+        async with ledger:
             try:
                 schema_deref = await ledger.deref_schema(schema_id)
             except LedgerTransactionError as error:
@@ -192,7 +192,9 @@ class IndyRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
         LOGGER.debug("ANONCREDS: get_credential_definition %s", credential_definition_id)
         async with profile.session() as session:
             ledger_pool = session.inject(LedgerPool)
-        async with ReadOnlyLedger(ledger_pool) as ledger, PoolResolver(ledger_pool) as resolver:
+            ledger = session.inject(ReadOnlyLedger)
+
+        async with ledger, PoolResolver(ledger_pool) as resolver:
             try:
                 cred_def_deref = await ledger.deref_cred_def(credential_definition_id)
 
@@ -272,8 +274,9 @@ class IndyRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
             "ANONCREDS: get_revocation_registry_definition %s", revocation_registry_id
         )
         async with profile.session() as session:
-            ledger_pool = session.inject(LedgerPool)
-        async with ReadOnlyLedger(ledger_pool) as ledger:
+            ledger = session.inject(ReadOnlyLedger)
+
+        async with ledger:
             try:
                 rev_reg_def_deref = await ledger.deref_rev_reg_def(revocation_registry_id)
             except LedgerTransactionError as error:
@@ -357,9 +360,9 @@ class IndyRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
         
         indy_rev_reg_def_id = make_indy_rev_reg_def_id_from_did_url(revocation_registry_id)
         async with profile.session() as session:
-            ledger_pool = session.inject(LedgerPool)
+            ledger = session.inject(ReadOnlyLedger)
 
-        async with ReadOnlyLedger(ledger_pool) as ledger:
+        async with ledger:
             delta, timestamp = await ledger.get_revoc_reg_delta(
                 indy_rev_reg_def_id=indy_rev_reg_def_id,
                 timestamp_from=timestamp_from,
