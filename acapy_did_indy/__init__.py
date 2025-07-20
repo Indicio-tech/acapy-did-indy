@@ -8,7 +8,7 @@ from acapy_agent.resolver.did_resolver import DIDResolver
 from acapy_agent.anoncreds.registry import AnonCredsRegistry
 from acapy_agent.config.provider import ClassProvider
 
-from did_indy.ledger import ReadOnlyLedger, LedgerPool, fetch_genesis_transactions
+from did_indy.ledger import LedgerPool, fetch_genesis_transactions
 from did_indy.client.client import IndyDriverClient
 from did_indy.cache import BasicCache
 from acapy_agent.core.profile import Profile
@@ -62,7 +62,8 @@ async def setup(context: InjectionContext):
         ),
         cache=BasicCache()
     )
-    # We bind an instance to take advantage of the caching in LedgerPool
+    
+    # Bind an instance to take advantage of the caching in LedgerPool
     context.injector.bind_instance(LedgerPool, ledger_pool)
 
     context.injector.bind_provider(AuthorSession, ClassProvider(

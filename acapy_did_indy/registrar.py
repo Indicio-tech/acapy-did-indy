@@ -21,8 +21,6 @@ from acapy_agent.wallet.base import BaseWallet
 from acapy_agent.wallet.did_info import DIDInfo
 from acapy_agent.wallet.error import WalletNotFoundError
 from acapy_agent.wallet.key_type import ED25519
-from did_indy.client.client import IndyDriverClient
-from did_indy.ledger import LedgerPool
 from indy_vdr import ledger
 from pydid.verification_method import Ed25519VerificationKey2020
 

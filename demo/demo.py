@@ -6,7 +6,7 @@ from os import getenv
 
 from acapy_controller import Controller
 from acapy_controller.logging import logging_to_stdout, section
-from acapy_controller.protocols import indy_anoncred_onboard, didexchange, indy_anoncred_credential_artifacts, anoncreds_issue_credential_v2, DIDResult
+from acapy_controller.protocols import didexchange, indy_anoncred_credential_artifacts, anoncreds_issue_credential_v2
 
 AGENT = getenv("AGENT", "http://localhost:3001")
 HOLDER = getenv("HOLDER", "http://localhost:3003")
