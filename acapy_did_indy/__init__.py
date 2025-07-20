@@ -72,11 +72,6 @@ async def setup(context: InjectionContext):
         profile=ClassProvider.Inject(Profile),
     ))
 
-    context.injector.bind_provider(ReadOnlyLedger, ClassProvider(
-        "did_indy.ledger.ReadOnlyLedger",
-        pool=ledger_pool
-    ))
-
     # Registrar
     context.injector.bind_instance(
         IndyRegistrar,
