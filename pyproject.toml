@@ -14,28 +14,21 @@ readme = "README.md"
 license = {text = "Apache-2.0"}
 
 [build-system]
-requires = ["pdm-backend"]
-build-backend = "pdm.backend"
+requires = ["uv_build>=0.7.19,<0.8.0"]
+build-backend = "uv_build"
 
-
-[tool.pdm]
-distribution = true
-
-[tool.pdm.dev-dependencies]
+[dependency-groups]
 dev = [
     "fastapi[standard]>=0.112.2",
     "ruff>=0.6.3",
     "pytest>=8.3.3",
 ]
-[tool.pdm.group.did_web_server.dependencies]
-fastapi = ">=0.112.2"
-[tool.pdm.group.acapy.dependencies]
-acapy-agent = ">=1.2.2"
-[tool.pdm.group.demo.dependencies]
-acapy-controller = ">=0.3.0"
-
-
-[dependency-groups]
+did_web_server = [
+  "fastapi>=0.112.2"
+]
+acapy = [
+  "acapy-agent>=1.2.2"
+]
 demo = [
-    "acapy-controller @ git+https://github.com/Indicio-tech/acapy-minimal-example.git@main",
+  "acapy-controller @ git+https://github.com/Indicio-tech/acapy-minimal-example.git@8de46d1d2cdaa7eff4a395bb389c20891c7ebc43",
 ]

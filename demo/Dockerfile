@@ -1,27 +1,17 @@
 FROM python:3.12-slim-bookworm as base
 WORKDIR /usr/src/app
 
-RUN apt-get update && apt-get install -y curl && apt-get clean
-ENV PDM_VERSION=2.24.0
-ENV PDM_HOME=/opt/pdm
-RUN curl -sSL https://pdm-project.org/install-pdm.py | python3 -
-
-
-FROM python:3.12-slim-bookworm
-WORKDIR /usr/src/app
-
-RUN apt-get update && apt-get install -y curl git && apt-get clean
-
-COPY --from=base /opt/pdm /opt/pdm
-
-ENV PATH="/opt/pdm/bin:$PATH"
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+RUN apt-get update && apt-get install -y git && apt-get clean
 
 # Setup project
-COPY pyproject.toml pdm.lock README.md ./
-RUN pdm install -G demo
-RUN pdm add "acapy-controller @ git+https://github.com/Indicio-tech/acapy-minimal-example.git@main"
-RUN pdm add acapy-controller
+COPY pyproject.toml uv.lock README.md ./
+RUN uv sync --locked --no-install-project --all-extras
 
-COPY ./demo/demo.py ./
+COPY src ./src
+RUN uv sync --locked --all-extras
+RUN uv sync --group demo
 
-ENTRYPOINT ["pdm", "run", "python", "-m", "demo"]
+COPY ./demo/demo.py ./src
+
+ENTRYPOINT ["uv", "run", "python", "-m", "src/demo"]
