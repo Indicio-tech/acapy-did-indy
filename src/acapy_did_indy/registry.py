@@ -34,9 +34,11 @@ from acapy_agent.anoncreds.models.schema import (
     SchemaState,
 )
 from acapy_agent.anoncreds.models.schema_info import AnonCredsSchemaInfo
-from did_indy.anoncreds import make_indy_schema_id
+from did_indy.did import parse_did_indy_from_url
+from did_indy.anoncreds import make_indy_rev_reg_def_id_from_did_url
 from did_indy.client.client import IndyDriverClient
-from did_indy.ledger import Ledger, LedgerPool, LedgerTransactionError, TAAInfo, TaaAcceptance
+from did_indy.ledger import LedgerPool, ReadOnlyLedger, LedgerTransactionError, TAAInfo, TaaAcceptance
+from did_indy.resolver import PoolResolver, make_cred_def_id_from_indy
 from acapy_agent.wallet.base import BaseWallet
 from acapy_agent.core.error import BaseError
 from .author import AuthorSession
@@ -116,21 +118,21 @@ class IndyRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
         LOGGER.debug("ANONCREDS: get_schema %s", schema_id)
 
         async with profile.session() as session:
-            ledger_pool = session.inject(LedgerPool)
-        async with Ledger(ledger_pool) as ledger:
+            pool = session.inject(LedgerPool)
+
+        async with ReadOnlyLedger(pool) as ledger:
             try:
-                schema_deref = await ledger.get_schema(schema_id)
+                schema_deref = await ledger.deref_schema(schema_id)
             except LedgerTransactionError as error:
                 LOGGER.exception("Failed to retrieve schema")
                 raise IndyRegistryError(f"Cannot retrieve schema: {error}") from error
 
-        schema = schema_deref.contentStream
         return GetSchemaResult(
             schema=AnonCredsSchema(
-                issuer_id=schema_id.split("/", maxsplit=1)[0],
-                attr_names=schema.attr_names,
-                name=schema.name,
-                version=schema.version,
+                issuer_id=parse_did_indy_from_url(schema_id).did,
+                attr_names=schema_deref.contentStream.attr_names,
+                name=schema_deref.contentStream.name,
+                version=schema_deref.contentStream.version,
             ),
             schema_id=schema_id,
             resolution_metadata=schema_deref.dereferencingMetadata,
@@ -189,26 +191,26 @@ class IndyRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
         """Get a credential definition from the registry."""
         LOGGER.debug("ANONCREDS: get_credential_definition %s", credential_definition_id)
         async with profile.session() as session:
-            ledger_pool = session.inject(LedgerPool)
-        async with Ledger(ledger_pool) as ledger:
+            pool = session.inject(LedgerPool)
+
+        async with ReadOnlyLedger(pool) as ledger, PoolResolver(pool) as resolver:
             try:
-                cred_def_deref = await ledger.get_cred_def(credential_definition_id)
+                cred_def_deref = await ledger.deref_cred_def(credential_definition_id)
+
             except LedgerTransactionError as error:
                 LOGGER.exception("Failed to retrieve credential definition")
                 raise IndyRegistryError(f"Cannot retrieve credential definition: {error}") from error
 
-            pool_name = ledger.pool.name
+            did_indy = parse_did_indy_from_url(credential_definition_id)
+            schema_id = await resolver._get_or_fetch_schema_id_by_seq_no(
+                ledger, did_indy.namespace, cred_def_deref.contentMetadata.nodeResponse.result.ref
+            )
 
-        issuer_id = credential_definition_id.split("/", maxsplit=1)[0]
         return GetCredDefResult(
             credential_definition_id=credential_definition_id,
             credential_definition=CredDef(
-                issuer_id=issuer_id,
-                schema_id=make_indy_schema_id(
-                    issuer_id=issuer_id,
-                    name=pool_name,
-                    version="v0",  # TODO: is this right?
-                ),
+                issuer_id=did_indy.did,
+                schema_id=schema_id,
                 type=cred_def_deref.contentMetadata.nodeResponse.result.signature_type,
                 tag=cred_def_deref.contentMetadata.nodeResponse.result.tag,
                 value=CredDefValue(
@@ -271,26 +273,32 @@ class IndyRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
             "ANONCREDS: get_revocation_registry_definition %s", revocation_registry_id
         )
         async with profile.session() as session:
-            ledger_pool = session.inject(LedgerPool)
-        async with Ledger(ledger_pool) as ledger:
+            pool = session.inject(LedgerPool)
+
+        async with ReadOnlyLedger(pool) as ledger:
             try:
-                rev_reg_def_deref = await ledger.get_rev_reg_def(revocation_registry_id)
+                rev_reg_def_deref = await ledger.deref_rev_reg_def(revocation_registry_id)
             except LedgerTransactionError as error:
                 LOGGER.exception("Failed to retrieve revocation registry definition")
                 raise IndyRegistryError(f"Cannot retrieve revocation registry definition: {error}") from error
-
+            
+        did_indy = parse_did_indy_from_url(revocation_registry_id)
+        cred_def_id = make_cred_def_id_from_indy(
+            did_indy.namespace, rev_reg_def_deref.contentStream.cred_def_id
+        )
+        value = rev_reg_def_deref.contentStream.value
         return GetRevRegDefResult(
             revocation_registry_id=revocation_registry_id,
             revocation_registry=RevRegDef(
-                issuer_id=revocation_registry_id.split("/", maxsplit=1)[0], # TODO
+                issuer_id=did_indy.did,
                 type="CL_ACCUM",
-                cred_def_id=rev_reg_def_deref.contentStream.cred_def_id,
+                cred_def_id=cred_def_id,
                 tag=rev_reg_def_deref.contentStream.tag,
                 value=RevRegDefValue(
-                    public_keys=rev_reg_def_deref.contentStream.value.public_keys,
-                    max_cred_num=rev_reg_def_deref.contentStream.value.max_cred_num,
-                    tails_location=rev_reg_def_deref.contentStream.value.tails_location,
-                    tails_hash=rev_reg_def_deref.contentStream.value.tails_hash,
+                    public_keys=value.public_keys,
+                    max_cred_num=value.max_cred_num,
+                    tails_location=value.tails_location,
+                    tails_hash=value.tails_hash,
                 ),
             ),
             resolution_metadata=rev_reg_def_deref.dereferencingMetadata,
@@ -348,7 +356,39 @@ class IndyRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
     ) -> GetRevListResult:
         """Get a revocation list from the registry."""
         LOGGER.info("ANONCREDS: get_revocation_list %s", revocation_registry_id)
-        raise NotImplementedError()
+        
+        indy_rev_reg_def_id = make_indy_rev_reg_def_id_from_did_url(revocation_registry_id)
+        async with profile.session() as session:
+            pool = session.inject(LedgerPool)
+
+        async with ReadOnlyLedger(pool) as ledger:
+            delta, timestamp = await ledger.get_revoc_reg_delta(
+                indy_rev_reg_def_id=indy_rev_reg_def_id,
+                timestamp_from=timestamp_from,
+                timestamp_to=timestamp_to,
+            )
+
+            max_cred_num = await ledger.get_or_fetch_rev_reg_def_max_cred_num(
+                indy_rev_reg_def_id
+            )
+
+        revocation_list_from_indexes = [
+            1 if index in delta["value"]["revoked"] else 0 for index in range(0, max_cred_num + 1)
+        ]
+        
+        did_indy = parse_did_indy_from_url(revocation_registry_id)
+
+        return GetRevListResult(
+            revocation_list=RevList(
+                issuer_id=did_indy.did,
+                rev_reg_def_id=revocation_registry_id,
+                revocation_list=revocation_list_from_indexes,
+                current_accumulator=delta["value"]["accum"],
+                timestamp=timestamp,
+            ),
+            resolution_metadata={},
+            revocation_registry_metadata={},
+        )
 
     async def register_revocation_list(
         self,

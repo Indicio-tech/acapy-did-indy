@@ -55,18 +55,21 @@ async def setup(context: InjectionContext):
         return 
     LOGGER.debug("Using indy namespace " + NAMESPACE)
 
-    context.injector.bind_provider(LedgerPool, ClassProvider(
-        "did_indy.ledger.LedgerPool",
+    ledger_pool = LedgerPool(
         name=NAMESPACE,
         genesis_transactions=await fetch_genesis_transactions(
             "https://raw.githubusercontent.com/Indicio-tech/indicio-network/main/genesis_files/pool_transactions_testnet_genesis"
         ),
-        cache=BasicCache(),
-    ))
+        cache=BasicCache()
+    )
+    
+    # Bind an instance to take advantage of the caching in LedgerPool
+    context.injector.bind_instance(LedgerPool, ledger_pool)
+
     context.injector.bind_provider(AuthorSession, ClassProvider(
         "acapy_did_indy.author.AuthorSession",
         client=client,
-        pool=ClassProvider.Inject(LedgerPool),
+        pool=ledger_pool,
         profile=ClassProvider.Inject(Profile),
     ))
 
