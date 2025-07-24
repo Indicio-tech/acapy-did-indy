@@ -14,4 +14,4 @@ RUN uv sync --group demo
 
 COPY ./demo/demo.py ./src
 
-ENTRYPOINT ["uv", "run", "python", "-m", "src/demo"]
+ENTRYPOINT ["uv", "run", "src/demo.py"]
