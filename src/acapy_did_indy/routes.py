@@ -15,7 +15,11 @@ from did_indy.ledger import TAAInfo, TaaAcceptance
 from .registrar import IndyRegistrar
 from .registry import IndyRegistry
 from .models.taa_acceptance import TAAAcceptance, TAAAcceptanceSchema
-from .taa_storage import save_taa_acceptance, get_taa_acceptance, get_all_taa_acceptances
+from .taa_storage import (
+    save_taa_acceptance,
+    get_taa_acceptance,
+    get_all_taa_acceptances,
+)
 
 
 LOGGER = logging.getLogger(__name__)
@@ -140,7 +144,9 @@ async def create_did_indy(request: web.Request):
             mediation_records=[mediation_record] if mediation_record else None,
         )
     except Exception:
-        raise web.HTTPInternalServerError(reason="Could not create did:indy from public nym")
+        raise web.HTTPInternalServerError(
+            reason="Could not create did:indy from public nym"
+        )
 
     return web.json_response({"did": did_info.did})
 
@@ -171,7 +177,9 @@ async def get_namespaces(request: web.Request):
     try:
         namespaces = await registry.get_namespaces(context.profile)
     except Exception as e:
-        raise web.HTTPInternalServerError(reason=f"Could not retrieve namespaces: {str(e)}")
+        raise web.HTTPInternalServerError(
+            reason=f"Could not retrieve namespaces: {str(e)}"
+        )
 
     return web.json_response({"namespaces": namespaces})
 
@@ -223,9 +231,7 @@ async def get_taa(request: web.Request):
 
         # Check if we've already accepted this TAA
         existing_acceptance = await get_taa_acceptance(
-            context.profile, 
-            namespace, 
-            taa_info.taa.version
+            context.profile, namespace, taa_info.taa.version
         )
         taa_response["namespace"] = namespace
         taa_response["taa"] = taa_info.model_dump()
@@ -300,7 +306,9 @@ async def accept_taa(request: web.Request):
         version = taa.get("version")
         digest = taa_acceptance.taaDigest
         accepted_at: int = taa_acceptance.time
-        LOGGER.debug("Accepting TAA for namespace '%s', version '%s'", namespace, version)
+        LOGGER.debug(
+            "Accepting TAA for namespace '%s', version '%s'", namespace, version
+        )
         LOGGER.debug("Accepting TAA with digest '%s'", digest)
         LOGGER.debug("TAA acceptance mechanism: %s", mechanism)
         LOGGER.debug("TAA acceptance time: %s", accepted_at)
@@ -356,7 +364,9 @@ async def list_taa_acceptances(request: web.Request):
             result.append(schema.dump(acceptance))
 
     except Exception as e:
-        raise web.HTTPInternalServerError(reason=f"Could not list TAA acceptances: {str(e)}")
+        raise web.HTTPInternalServerError(
+            reason=f"Could not list TAA acceptances: {str(e)}"
+        )
 
     return web.json_response({"taa_acceptances": result})
 

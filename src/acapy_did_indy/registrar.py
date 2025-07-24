@@ -1,11 +1,10 @@
 """did:indy registrar."""
 
-import logging
 import json
+import logging
 from typing import List
-import base58
-from hashlib import sha256
 
+import base58
 from acapy_agent.config.settings import Settings
 from acapy_agent.core.error import BaseError
 from acapy_agent.core.profile import Profile
@@ -21,13 +20,16 @@ from acapy_agent.wallet.base import BaseWallet
 from acapy_agent.wallet.did_info import DIDInfo
 from acapy_agent.wallet.error import WalletNotFoundError
 from acapy_agent.wallet.key_type import ED25519
+from did_indy.author.author import Author
+from did_indy.did import nym_from_verkey
 from indy_vdr import ledger
 from pydid.verification_method import Ed25519VerificationKey2020
 
+from .author import AcapyAuthorDeps
 from .did import INDY
-from .author import AuthorSession
 
 LOGGER = logging.getLogger(__name__)
+
 
 class IndyRegistrarError(BaseError):
     """Raised on errors in registrar."""
@@ -37,24 +39,23 @@ class IndyRegistrar:
     """did:indy registrar."""
 
     def __init__(
-            self,
-            settings: Settings,
-        ):
+        self,
+        settings: Settings,
+    ):
         """Initialize the registrar."""
         LOGGER.info("DID:Indy Initializing did:indy registrar")
         config = settings.for_plugin("acapy_did_indy")
         namespace = config.get("indy_namespace")
 
         if not namespace:
-            raise IndyRegistrarError("Namespace is not configured; cannot init registrar")
+            raise IndyRegistrarError(
+                "Namespace is not configured; cannot init registrar"
+            )
 
         self.namespace = namespace
 
-
     async def prepare_didcomm_services(
-        self,
-        profile: Profile,
-        mediation_records: List[MediationRecord] | None = None
+        self, profile: Profile, mediation_records: List[MediationRecord] | None = None
     ):
         LOGGER.info("DID:Indy Preparing didcomm services")
         """Prepare didcomm service for adding to diddocContent."""
@@ -96,7 +97,7 @@ class IndyRegistrar:
         *,
         didcomm: bool = True,
         ldp_vc: bool = False,
-        mediation_records: List[MediationRecord] | None = None
+        mediation_records: List[MediationRecord] | None = None,
     ) -> DIDInfo:
         LOGGER.info("DID:Indy Creating did:indy from public nym")
         """Create a new did:indy and publish it to the ledger."""
@@ -106,18 +107,8 @@ class IndyRegistrar:
         async with profile.session() as session:
             wallet = session.inject(BaseWallet)
             key = await wallet.create_key(key_type=ED25519)
-            pub_verkey = base58.b58decode(key.verkey)
-            digest = sha256(pub_verkey).digest()[:16]
-
-            new_nym = base58.b58encode(digest).decode()
-            did = f"did:indy:{self.namespace}:{new_nym}"
-
-            # Exists?
-            try:
-                previous = await wallet.get_local_did(did)
-                return previous
-            except WalletNotFoundError:
-                pass
+            nym = nym_from_verkey(key.verkey, version=2)
+            did = f"did:indy:{self.namespace}:{nym}"
 
             # Enable ldp-vc issuance?
             verkey = key.verkey
@@ -141,21 +132,23 @@ class IndyRegistrar:
                 doc_content = {}
 
             if didcomm:
-                services = await self.prepare_didcomm_services(profile, mediation_records)
-                doc_content["service"] = services
-            async with profile.session() as session:
-                author_session = session.inject(AuthorSession)
-                async with author_session.with_verkey(key.verkey) as author:
-                    author = author_session.get_author()
-                ledger_response = await author.client.create_nym(
-                    namespace=self.namespace,
-                    verkey=verkey,
-                    nym=new_nym,
-                    diddoc_content=json.dumps(doc_content),
-                    taa=await author_session.get_taa(self.namespace),
-                    # version=1,
+                services = await self.prepare_didcomm_services(
+                    profile, mediation_records
                 )
-                LOGGER.debug("DID:Indy Nym creation response: %s", ledger_response)
+                doc_content["service"] = services
+
+            author = session.inject(Author)
+            deps = session.inject(AcapyAuthorDeps)
+            ledger_response = await author.client.create_nym(
+                namespace=self.namespace,
+                verkey=verkey,
+                nym=nym,
+                diddoc_content=json.dumps(doc_content),
+                taa=await deps.get_taa(self.namespace),
+                # version=1,
+            )
+            LOGGER.debug("DID:Indy Nym creation response: %s", ledger_response)
+
             did_info = DIDInfo(
                 did=ledger_response.did,
                 verkey=verkey,
@@ -176,7 +169,7 @@ class IndyRegistrar:
         *,
         didcomm: bool = True,
         ldp_vc: bool = False,
-        mediation_records: List[MediationRecord] | None = None
+        mediation_records: List[MediationRecord] | None = None,
     ) -> DIDInfo:
         LOGGER.info("DID:Indy Creating did:indy from public nym")
         """Create a did:indy from an already published nym.
@@ -226,7 +219,9 @@ class IndyRegistrar:
                 doc_content = {}
 
             if didcomm:
-                services = await self.prepare_didcomm_services(profile, mediation_records)
+                services = await self.prepare_didcomm_services(
+                    profile, mediation_records
+                )
                 doc_content["service"] = services
 
             did_info = DIDInfo(
@@ -245,7 +240,9 @@ class IndyRegistrar:
             )
             base_ledger = session.inject(BaseLedger)
             async with base_ledger:
-                await base_ledger.txn_submit(nym_txn.body, sign=True, sign_did=public_did)
+                await base_ledger.txn_submit(
+                    nym_txn.body, sign=True, sign_did=public_did
+                )
                 attrib_txn = ledger.build_attrib_request(
                     public_did.did,
                     public_did.did,
