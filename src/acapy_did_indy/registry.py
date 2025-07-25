@@ -169,7 +169,7 @@ class IndyRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
         
 
         return SchemaResult(
-            job_id=uuid4().hex,
+            job_id=None,
             schema_state=SchemaState(
                 state=SchemaState.STATE_FINISHED,
                 schema_id=schema_response.schema_id,
@@ -254,8 +254,7 @@ class IndyRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
             LOGGER.debug("Credential definition registered: %s", cred_def_response)
 
         return CredDefResult(
-            # job_id=uuid4().hex,
-            None,  # Job ID is not used in this implementation
+            job_id=None,
             credential_definition_state=CredDefState(
                 state=CredDefState.STATE_FINISHED,
                 credential_definition_id=cred_def_response.cred_def_id,
@@ -337,7 +336,7 @@ class IndyRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
             LOGGER.debug("Revocation registry definition registered: %s", rev_reg_response)
 
         return RevRegDefResult(
-            job_id=uuid4().hex,
+            job_id=None,
             revocation_registry_definition_state=RevRegDefState(
                 state=RevRegDefState.STATE_FINISHED,
                 revocation_registry_definition_id=rev_reg_response.rev_reg_def_id,
@@ -423,7 +422,7 @@ class IndyRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
 
 
         return RevListResult(
-            job_id=uuid4().hex,
+            job_id=None,
             revocation_list_state=RevListState(
                 state=RevRegDefState.STATE_FINISHED,
                 revocation_list=rev_list,
@@ -472,7 +471,7 @@ class IndyRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
 
 
         return RevListResult(
-            job_id=uuid4().hex,
+            job_id=None,
             revocation_list_state=RevListState(
                 state=RevRegDefState.STATE_FINISHED,
                 revocation_list=curr_list,
