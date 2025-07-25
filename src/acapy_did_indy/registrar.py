@@ -109,14 +109,17 @@ class IndyRegistrar:
             key = await wallet.create_key(key_type=ED25519)
             nym = nym_from_verkey(key.verkey, version=2)
             did = f"did:indy:{self.namespace}:{nym}"
+            await wallet.assign_kid_to_key(key.verkey, did + "#verkey")
 
             # Enable ldp-vc issuance?
             verkey = key.verkey
             if ldp_vc:
                 kid = f"{did}#assert"
-                # key = await wallet.create_key(key_type=ED25519, kid=kid)
+                assertion_method = await wallet.create_key(key_type=ED25519, kid=kid)
                 public_key_multibase = multibase.encode(
-                    multicodec.wrap("ed25519-pub", base58.b58decode(key.verkey)),
+                    multicodec.wrap(
+                        "ed25519-pub", base58.b58decode(assertion_method.verkey)
+                    ),
                     "base58btc",
                 )
                 # verkey = key.verkey

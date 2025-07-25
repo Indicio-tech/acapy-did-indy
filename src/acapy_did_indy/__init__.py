@@ -100,12 +100,6 @@ async def setup(context: InjectionContext):
 
     # Registry
     indy_registry = IndyRegistry()
-    indy_registry = ClassProvider(
-        "acapy_did_indy.registry.IndyRegistry",
-        client=client,
-        # supported_identifiers=[],
-        # method_name="did:indy",
-    ).provide(context.settings, context.injector)
     await indy_registry.setup(context)
     registry.register(indy_registry)
     context.injector.bind_instance(IndyRegistry, indy_registry)

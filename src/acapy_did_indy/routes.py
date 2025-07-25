@@ -230,9 +230,10 @@ async def get_taa(request: web.Request):
         taa_response = {}
 
         # Check if we've already accepted this TAA
-        existing_acceptance = await get_taa_acceptance(
-            context.profile, namespace, taa_info.taa.version
-        )
+        async with context.session() as session:
+            existing_acceptance = await get_taa_acceptance(
+                session, namespace, taa_info.taa.version
+            )
         taa_response["namespace"] = namespace
         taa_response["taa"] = taa_info.model_dump()
         if existing_acceptance:
