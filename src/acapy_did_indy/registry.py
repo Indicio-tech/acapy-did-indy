@@ -340,7 +340,7 @@ class IndyRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
             job_id=uuid4().hex,
             revocation_registry_definition_state=RevRegDefState(
                 state=RevRegDefState.STATE_FINISHED,
-                revocation_registry_definition_id=rev_reg_response.indy_rev_reg_def_id,
+                revocation_registry_definition_id=rev_reg_response.rev_reg_def_id,
                 revocation_registry_definition=revocation_registry_definition,
             ),
             registration_metadata=rev_reg_response.registration_metadata.model_dump(),
