@@ -124,7 +124,7 @@ class IndyRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
             raise IndyRegistryError(f"Cannot retrieve schema: {error}") from error
 
         return GetSchemaResult(
-            schema=AnonCredsSchema.deserialize(schema.model_dump()),
+            schema=AnonCredsSchema.deserialize(schema.model_dump(by_alias=True)),
             schema_id=schema_id,
             resolution_metadata=deref.dereferencingMetadata,
             schema_metadata=deref.contentMetadata.nodeResponse.result.model_dump(),
@@ -186,7 +186,9 @@ class IndyRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
 
         return GetCredDefResult(
             credential_definition_id=credential_definition_id,
-            credential_definition=CredDef.deserialize(cred_def.model_dump()),
+            credential_definition=CredDef.deserialize(
+                cred_def.model_dump(by_alias=True, exclude_none=True)
+            ),
             resolution_metadata=deref.dereferencingMetadata,
             credential_definition_metadata=deref.contentMetadata.nodeResponse.result.model_dump(),
         )
@@ -247,7 +249,9 @@ class IndyRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
 
         return GetRevRegDefResult(
             revocation_registry_id=revocation_registry_id,
-            revocation_registry=RevRegDef.deserialize(rev_reg_def.model_dump()),
+            revocation_registry=RevRegDef.deserialize(
+                rev_reg_def.model_dump(by_alias=True)
+            ),
             resolution_metadata=deref.dereferencingMetadata,
             revocation_registry_metadata=deref.contentMetadata.nodeResponse.result.model_dump(),
         )
@@ -310,7 +314,7 @@ class IndyRegistry(BaseAnonCredsResolver, BaseAnonCredsRegistrar):
         )
 
         return GetRevListResult(
-            revocation_list=RevList.deserialize(rev_list.model_dump()),
+            revocation_list=RevList.deserialize(rev_list.model_dump(by_alias=True)),
             resolution_metadata={},
             revocation_registry_metadata={},
         )
