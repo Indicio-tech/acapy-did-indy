@@ -94,8 +94,8 @@ async def create_new_did_indy(request: web.Request):
             ldp_vc=ldp_vc,
             mediation_records=[mediation_record] if mediation_record else None,
         )
-    except Exception:
-        raise web.HTTPInternalServerError(reason="Could not create did:indy from public nym")
+    except Exception as e:
+        raise web.HTTPInternalServerError(reason=f"Could not create did:indy with new nym: {str(e)}")
 
     return web.json_response({"did": did_info.did})
 
