@@ -32,6 +32,7 @@ async def save_taa_acceptance(
     
     async with profile.session() as session:
         storage = session.inject(BaseStorage)
+        LOGGER.debug(f"Saving TAA acceptance with ID {record_id} and in storage: {str(storage)}")
         try:
             await storage.add_record(
                 StorageRecord(
