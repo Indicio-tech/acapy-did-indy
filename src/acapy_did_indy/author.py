@@ -79,6 +79,7 @@ class AuthorSession:
 
         # Retrieve the TAA from storage
         taa_record = await get_taa_acceptance(self._profile, namespace)
+        LOGGER.debug(f"Retrieved TAA for namespace {namespace}: {taa_record}")
         return TaaAcceptance(
             taaDigest=taa_record.digest,
             mechanism=taa_record.mechanism,
