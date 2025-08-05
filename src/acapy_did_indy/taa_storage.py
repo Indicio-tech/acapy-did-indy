@@ -121,7 +121,8 @@ async def get_all_taa_acceptances(
     """
     async with profile.session() as session:
         storage = session.inject(BaseStorage)
-    
+    LOGGER.debug("Retrieved Storage Session: %s", storage)
+    LOGGER.debug("Retrieving all TAA acceptance records")
     try:
         records = await storage.find_all_records(TAA_ACCEPTANCE_RECORD_TYPE, {})
         result = []
