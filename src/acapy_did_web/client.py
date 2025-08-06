@@ -1,5 +1,7 @@
 """DID Web Server client."""
+
 from aiohttp import ClientSession
+
 
 class DidWebServerClientError(Exception):
     """Raised on errors in the client."""

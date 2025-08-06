@@ -1,20 +1,17 @@
 """did:indy support."""
 
 import logging
-from typing import cast, Optional
+from typing import Optional
 
-from acapy_agent.wallet.base import BaseWallet
 from acapy_agent.core.error import BaseError
-
-from did_indy.ledger import LedgerPool
-from did_indy.ledger import TaaAcceptance
-from did_indy.client.client import IndyDriverClient
+from acapy_agent.core.profile import ProfileSession
+from acapy_agent.wallet.base import BaseWallet
+from did_indy.author.author import AuthorDependencies
+from did_indy.driver.ledgers import Ledgers
+from did_indy.ledger import LedgerPool, TaaAcceptance
 from did_indy.signer import Signer
-from did_indy.author.author import Author, AuthorDependencies
-from acapy_agent.core.profile import Profile
 
 from .taa_storage import get_taa_acceptance
-
 
 LOGGER = logging.getLogger(__name__)
 
@@ -23,52 +20,41 @@ class IndyRegistryError(BaseError):
     """Raised on errors in registrar."""
 
 
-class AuthorDependenciesBasic(AuthorDependencies):
-    def __init__(self, signer: Signer, pool: LedgerPool):
-        self.signer = signer
-        self.pool = pool
+class AcapyAuthorDeps(AuthorDependencies):
+    """Fulfill Author interface dependencies with ACA-Py fixtures."""
+
+    def __init__(self, session: ProfileSession):
+        """Init deps."""
+        self.session = session
 
     async def get_signer(self, did: str) -> Signer:
-        return self.signer
+        """Retreive a signer for a did.
+
+        The signer is the verkey associated with the DID which will always be:
+            {did}#verkey
+        because of how we store the key in the wallet on creation.
+        """
+        wallet = self.session.inject(BaseWallet)
+        signer = await wallet.get_key_by_kid(did + "#verkey")
+
+        async def _signer(message: bytes) -> bytes:
+            return await wallet.sign_message(message, from_verkey=signer.verkey)
+
+        return _signer
 
     async def get_pool(self, namespace: str) -> LedgerPool:
-        return self.pool
+        """Get the ledger pool for a namespace."""
+        ledgers = self.session.inject(Ledgers)
+        pool = ledgers.get(namespace)
+        if not pool:
+            raise Exception("Insert good exception details here")
+        return pool
 
-
-class AuthorSession:
-    def __init__(self, profile: Profile, client: IndyDriverClient, pool: LedgerPool):
-        self.client = client
-        self._pool = pool
-        self._profile = profile
-        self._author: Author
-
-    def with_verkey(self, verkey: str) -> "AuthorSession":
-
-        async def sign_transaction(message: bytes) -> bytes:
-            """Sign a message."""
-            async with self._profile.session() as session:
-                wallet = session.inject(BaseWallet)
-                return bytes(await wallet.sign_message(message, from_verkey=verkey))
-        dependencies = AuthorDependenciesBasic(cast(Signer, sign_transaction), self._pool)
-        self._author = Author(self.client, dependencies)
-        return self
-
-    def get_author(self) -> Author:
-        return self._author
-
-    async def __aenter__(self) -> Author:
-        return self.get_author()
-
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        # self._author = None
-        pass
-
-    async def get_taa(self, namespace: Optional[str] = None) -> Optional[TaaAcceptance]:
+    async def get_taa(self, namespace: str) -> Optional[TaaAcceptance]:
         """Get a Transaction Author Agreement from storage.
 
         Args:
-            namespace: The namespace to retrieve TAA for. If not provided,
-                      uses the pool's namespace
+            namespace: The namespace to retrieve TAA for.
 
         Returns:
             The TAA acceptance record if found, None otherwise
@@ -78,7 +64,7 @@ class AuthorSession:
             namespace = self._pool.name
 
         # Retrieve the TAA from storage
-        taa_record = await get_taa_acceptance(self._profile, namespace)
+        taa_record = await get_taa_acceptance(self.session, namespace)
         LOGGER.debug(f"Retrieved TAA for namespace {namespace}: {taa_record}")
         return TaaAcceptance(
             taaDigest=taa_record.digest,

@@ -1,9 +1,0 @@
-{
-    "python.defaultInterpreterPath": "/usr/local/bin/python",
-    "editor.formatOnSave": false,
-    "[python]": {
-        "editor.formatOnSave": false,
-        "editor.defaultFormatter": "charliermarsh.ruff"
-    },
-    "python.analysis.typeCheckingMode": "standard"
-}

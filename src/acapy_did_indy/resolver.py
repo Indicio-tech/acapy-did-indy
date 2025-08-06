@@ -7,7 +7,12 @@ from acapy_agent.config.injection_context import InjectionContext
 from acapy_agent.config.ledger import fetch_genesis_transactions
 from acapy_agent.core.profile import Profile
 from acapy_agent.messaging.valid import B58
-from acapy_agent.resolver.base import BaseDIDResolver, DIDNotFound, ResolverError, ResolverType
+from acapy_agent.resolver.base import (
+    BaseDIDResolver,
+    DIDNotFound,
+    ResolverError,
+    ResolverType,
+)
 from indy_vdr import Resolver, VdrError, VdrErrorCode, open_pool
 
 LOGGER = logging.getLogger(__name__)
@@ -15,7 +20,6 @@ LOGGER = logging.getLogger(__name__)
 INDY_DID_PATTERN = re.compile(
     rf"^did:indy:(?P<namespace>[^:]+(:[^:]+)?):[{B58}]{{21,22}}$"
 )
-
 
 
 class IndyResolver(BaseDIDResolver):
@@ -39,10 +43,14 @@ class IndyResolver(BaseDIDResolver):
         if auto:
             resolver = Resolver(autopilot=True)
         elif ledgers:
-            resolver = Resolver(pool_map={
-                name: await open_pool(transactions=await fetch_genesis_transactions(genesis_url))
-                for name, genesis_url in ledgers.items()
-            })
+            resolver = Resolver(
+                pool_map={
+                    name: await open_pool(
+                        transactions=await fetch_genesis_transactions(genesis_url)
+                    )
+                    for name, genesis_url in ledgers.items()
+                }
+            )
         else:
             raise ResolverError(
                 "Could not configure indy resolver; missing auto flag or ledger map"
