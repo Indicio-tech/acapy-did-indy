@@ -87,7 +87,7 @@ did-web-server = [
 
 [package.metadata]
 requires-dist = [
-    { name = "did-indy-py", extras = ["client", "demo", "driver"], git = "https://github.com/Indicio-tech/did-indy-py.git?rev=ebd5bbcd7211d6c6d04d7a779adcb9d9bfd7f7d8" },
+    { name = "did-indy-py", extras = ["client", "demo", "driver"], git = "https://github.com/Indicio-tech/did-indy-py.git?rev=49728cfcd7e4dffa15e6611912ff070f964b8223" },
     { name = "pytest", specifier = ">=8.4.0" },
 ]
 
@@ -519,7 +519,7 @@ wheels = [
 [[package]]
 name = "did-indy-py"
 version = "0.1.0"
-source = { git = "https://github.com/Indicio-tech/did-indy-py.git?rev=ebd5bbcd7211d6c6d04d7a779adcb9d9bfd7f7d8#ebd5bbcd7211d6c6d04d7a779adcb9d9bfd7f7d8" }
+source = { git = "https://github.com/Indicio-tech/did-indy-py.git?rev=49728cfcd7e4dffa15e6611912ff070f964b8223#49728cfcd7e4dffa15e6611912ff070f964b8223" }
 dependencies = [
     { name = "httpx" },
 ]
