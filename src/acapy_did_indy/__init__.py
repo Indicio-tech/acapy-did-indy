@@ -58,19 +58,26 @@ async def setup(context: InjectionContext):
         LOGGER.error(
             "Indy namespace not specified. Please do so using the `indy_namespace` ACA-py plugin variable."
         )
-        return
-    LOGGER.debug("Using indy namespace " + NAMESPACE)
+        # return
+    # LOGGER.debug("Using indy namespace " + NAMESPACE)
 
-    ledger_pool = LedgerPool(
-        name=NAMESPACE,
-        genesis_transactions=await fetch_genesis_transactions(
-            "https://raw.githubusercontent.com/Indicio-tech/indicio-network/main/genesis_files/pool_transactions_testnet_genesis"
-        ),
-        cache=BasicCache(),
+    ledgers = plugin_settings.get("ledgers")
+    ledgers = {
+        namespace: LedgerPool(
+            name=namespace,
+            genesis_transactions=await fetch_genesis_transactions(ledgers[namespace]),
+            cache=BasicCache(),
+        )
+        for namespace in ledgers.keys()
+    }
+    LOGGER.error(
+        "HELP\n\n\n\n\n"
     )
+    LOGGER.error(ledgers)
+    LOGGER.error(NAMESPACE)
 
     # TODO Add more dynamic support for more networks
-    ledgers = Ledgers({NAMESPACE: ledger_pool})
+    ledgers = Ledgers(ledgers)
     context.injector.bind_instance(Ledgers, ledgers)
 
     context.injector.bind_provider(

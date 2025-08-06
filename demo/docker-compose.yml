@@ -33,8 +33,8 @@ services:
         --debug-webhooks
         --plugin acapy_did_indy
         --plugin-config-value acapy_did_indy.api_key=insecure-api-key
-        --plugin-config-value acapy_did_indy.indy_namespace=indicio:test
         --plugin-config-value acapy_did_indy.ledgers."indicio:test"=https://raw.githubusercontent.com/Indicio-tech/indicio-network/main/genesis_files/pool_transactions_testnet_genesis
+        --plugin-config-value acapy_did_indy.ledgers."indicio:demo"=https://raw.githubusercontent.com/Indicio-tech/indicio-network/main/genesis_files/pool_transactions_demonet_genesis
     healthcheck:
       test: curl -s -o /dev/null -w '%{http_code}' "http://localhost:3001/status/live" | grep "200" > /dev/null
       start_period: 30s
@@ -78,8 +78,8 @@ services:
         --debug-webhooks
         --plugin acapy_did_indy
         --plugin-config-value acapy_did_indy.api_key=insecure-api-key
-        --plugin-config-value acapy_did_indy.indy_namespace=indicio:test
         --plugin-config-value acapy_did_indy.ledgers."indicio:test"=https://raw.githubusercontent.com/Indicio-tech/indicio-network/main/genesis_files/pool_transactions_testnet_genesis
+        --plugin-config-value acapy_did_indy.ledgers."indicio:demo"=https://raw.githubusercontent.com/Indicio-tech/indicio-network/main/genesis_files/pool_transactions_demonet_genesis
     healthcheck:
       test: curl -s -o /dev/null -w '%{http_code}' "http://localhost:3003/status/live" | grep "200" > /dev/null
       start_period: 30s

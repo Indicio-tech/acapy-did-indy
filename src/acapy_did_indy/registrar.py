@@ -52,7 +52,7 @@ class IndyRegistrar:
                 "Namespace is not configured; cannot init registrar"
             )
 
-        self.namespace = namespace
+        # self.namespace = namespace
 
     async def prepare_didcomm_services(
         self, profile: Profile, mediation_records: List[MediationRecord] | None = None
