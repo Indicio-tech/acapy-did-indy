@@ -67,7 +67,7 @@ class AcapyAuthorDeps(AuthorDependencies):
             namespace = self._pool.name
 
         # Check cache
-        cached_taa_acceptance = self.taa_cache.get(namespace)
+        cached_taa_acceptance = await self.taa_cache.get(namespace)
         if cached_taa_acceptance is not None:
             return cached_taa_acceptance
 
@@ -81,6 +81,5 @@ class AcapyAuthorDeps(AuthorDependencies):
             time=taa_record.accepted_at
         ) if taa_record else None
         
-        # Set ttl to an hour
-        self.taa_cache.set(namespace, taa_acceptance, ttl=CACHE_TTL)
+        await self.taa_cache.set(namespace, taa_acceptance, ttl=CACHE_TTL)
         return taa_acceptance
