@@ -6,15 +6,17 @@ from typing import Optional
 from acapy_agent.core.error import BaseError
 from acapy_agent.core.profile import ProfileSession
 from acapy_agent.wallet.base import BaseWallet
+
 from did_indy.author.author import AuthorDependencies
 from did_indy.driver.ledgers import Ledgers
 from did_indy.ledger import LedgerPool, TaaAcceptance
 from did_indy.signer import Signer
+from did_indy.cache import BasicCache
 
 from .taa_storage import get_taa_acceptance
 
 LOGGER = logging.getLogger(__name__)
-
+CACHE_TTL = 3600
 
 class IndyRegistryError(BaseError):
     """Raised on errors in registrar."""
@@ -26,6 +28,7 @@ class AcapyAuthorDeps(AuthorDependencies):
     def __init__(self, session: ProfileSession):
         """Init deps."""
         self.session = session
+        self.taa_cache = BasicCache()
 
     async def get_signer(self, did: str) -> Signer:
         """Retreive a signer for a did.
@@ -63,11 +66,21 @@ class AcapyAuthorDeps(AuthorDependencies):
             # Use the pool's namespace
             namespace = self._pool.name
 
+        # Check cache
+        cached_taa_acceptance = self.taa_cache.get(namespace)
+        if cached_taa_acceptance is not None:
+            return cached_taa_acceptance
+
         # Retrieve the TAA from storage
         taa_record = await get_taa_acceptance(self.session, namespace)
         LOGGER.debug(f"Retrieved TAA for namespace {namespace}: {taa_record}")
-        return TaaAcceptance(
+
+        taa_acceptance = TaaAcceptance(
             taaDigest=taa_record.digest,
             mechanism=taa_record.mechanism,
             time=taa_record.accepted_at
         ) if taa_record else None
+        
+        # Set ttl to an hour
+        self.taa_cache.set(namespace, taa_acceptance, ttl=CACHE_TTL)
+        return taa_acceptance
