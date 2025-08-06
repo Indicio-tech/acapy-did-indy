@@ -193,13 +193,6 @@ class IndyRegistrar:
                 raise IndyRegistrarError("No nym provided and public DID not set")
             did = f"did:indy:{self.namespace}:{public_did.did}"
 
-            # Exists?
-            try:
-                previous = await wallet.get_local_did(did)
-                return previous
-            except WalletNotFoundError:
-                pass
-
             # Enable ldp-vc issuance?
             verkey = public_did.verkey
             if ldp_vc:
