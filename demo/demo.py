@@ -54,6 +54,7 @@ async def main():
             did_indy_result = await controller.post(
                 "/did/indy/new-did",
                 json={
+                    "namespace": "indicio:test",
                     "ldp_vc": True,
                     "didcomm": True,
                     # "nym": did.did,

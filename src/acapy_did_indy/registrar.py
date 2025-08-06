@@ -5,7 +5,6 @@ import logging
 from typing import List
 
 import base58
-from acapy_agent.config.settings import Settings
 from acapy_agent.core.error import BaseError
 from acapy_agent.core.profile import Profile
 from acapy_agent.ledger.base import BaseLedger
@@ -18,7 +17,6 @@ from acapy_agent.protocols.coordinate_mediation.v1_0.route_manager import (
 from acapy_agent.utils.multiformats import multibase, multicodec
 from acapy_agent.wallet.base import BaseWallet
 from acapy_agent.wallet.did_info import DIDInfo
-from acapy_agent.wallet.error import WalletNotFoundError
 from acapy_agent.wallet.key_type import ED25519
 from did_indy.author.author import Author
 from did_indy.did import nym_from_verkey
@@ -40,17 +38,17 @@ class IndyRegistrar:
 
     def __init__(
         self,
-        settings: Settings,
+        # settings: Settings,
     ):
         """Initialize the registrar."""
         LOGGER.info("DID:Indy Initializing did:indy registrar")
-        config = settings.for_plugin("acapy_did_indy")
-        namespace = config.get("indy_namespace")
+        # config = settings.for_plugin("acapy_did_indy")
+        # namespace = config.get("indy_namespace")
 
-        if not namespace:
-            raise IndyRegistrarError(
-                "Namespace is not configured; cannot init registrar"
-            )
+        # if not namespace:
+        #     raise IndyRegistrarError(
+        #         "Namespace is not configured; cannot init registrar"
+        #     )
 
         # self.namespace = namespace
 
@@ -94,6 +92,7 @@ class IndyRegistrar:
     async def create_new_nym(
         self,
         profile: Profile,
+        namespace: str,
         *,
         didcomm: bool = True,
         ldp_vc: bool = False,
@@ -108,7 +107,7 @@ class IndyRegistrar:
             wallet = session.inject(BaseWallet)
             key = await wallet.create_key(key_type=ED25519)
             nym = nym_from_verkey(key.verkey, version=2)
-            did = f"did:indy:{self.namespace}:{nym}"
+            did = f"did:indy:{namespace}:{nym}"
             await wallet.assign_kid_to_key(key.verkey, did + "#verkey")
 
             # Enable ldp-vc issuance?
@@ -143,11 +142,11 @@ class IndyRegistrar:
             author = session.inject(Author)
             deps = session.inject(AcapyAuthorDeps)
             ledger_response = await author.client.create_nym(
-                namespace=self.namespace,
+                namespace=namespace,
                 verkey=verkey,
                 nym=nym,
                 diddoc_content=json.dumps(doc_content),
-                taa=await deps.get_taa(self.namespace),
+                taa=await deps.get_taa(namespace),
                 # version=1,
             )
             LOGGER.debug("DID:Indy Nym creation response: %s", ledger_response)
@@ -156,7 +155,7 @@ class IndyRegistrar:
                 did=ledger_response.did,
                 verkey=verkey,
                 metadata={
-                    "namespace": self.namespace,
+                    "namespace": namespace,
                 },
                 method=INDY,
                 key_type=ED25519,
@@ -168,6 +167,7 @@ class IndyRegistrar:
     async def from_public_nym(
         self,
         profile: Profile,
+        namespace: str,
         nym: str | None,
         *,
         didcomm: bool = True,
@@ -191,7 +191,7 @@ class IndyRegistrar:
 
             if not public_did:
                 raise IndyRegistrarError("No nym provided and public DID not set")
-            did = f"did:indy:{self.namespace}:{public_did.did}"
+            did = f"did:indy:{namespace}:{public_did.did}"
 
             # Enable ldp-vc issuance?
             verkey = public_did.verkey
@@ -224,7 +224,7 @@ class IndyRegistrar:
                 did=did,
                 verkey=verkey,
                 metadata={
-                    "namespace": self.namespace,
+                    "namespace": namespace,
                 },
                 method=INDY,
                 key_type=ED25519,

@@ -73,6 +73,7 @@ async def create_new_did_indy(request: web.Request):
     context: AdminRequestContext = request["context"]
 
     body = await request.json()
+    namespace = body.get("namespace", "indicio:test")
     ldp_vc = body.get("ldp_vc", False)
     didcomm = body.get("didcomm", True)
     mediation_id = body.get("mediation_id")
@@ -95,6 +96,7 @@ async def create_new_did_indy(request: web.Request):
             registrar = session.inject(IndyRegistrar)
             did_info = await registrar.create_new_nym(
                 context.profile,
+                namespace=namespace,
                 didcomm=didcomm,
                 ldp_vc=ldp_vc,
                 mediation_records=[mediation_record] if mediation_record else None,
@@ -117,6 +119,7 @@ async def create_did_indy(request: web.Request):
     context: AdminRequestContext = request["context"]
 
     body = await request.json()
+    namespace = body.get("namespace", "indicio:test")
     nym = body.get("nym")
     ldp_vc = body.get("ldp_vc", False)
     didcomm = body.get("didcomm", True)
@@ -140,6 +143,7 @@ async def create_did_indy(request: web.Request):
             registrar = session.inject(IndyRegistrar)
             did_info = await registrar.from_public_nym(
                 context.profile,
+                namespace,
                 nym,
                 didcomm=didcomm,
                 ldp_vc=ldp_vc,

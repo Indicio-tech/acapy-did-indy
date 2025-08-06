@@ -53,14 +53,6 @@ async def setup(context: InjectionContext):
     client = IndyDriverClient(DRIVER, client_api_key=API_KEY)
     context.injector.bind_instance(IndyDriverClient, client)
 
-    NAMESPACE = plugin_settings.get("indy_namespace")
-    if NAMESPACE is None:
-        LOGGER.error(
-            "Indy namespace not specified. Please do so using the `indy_namespace` ACA-py plugin variable."
-        )
-        # return
-    # LOGGER.debug("Using indy namespace " + NAMESPACE)
-
     ledgers = plugin_settings.get("ledgers")
     ledgers = {
         namespace: LedgerPool(
@@ -69,14 +61,8 @@ async def setup(context: InjectionContext):
             cache=BasicCache(),
         )
         for namespace in ledgers.keys()
-    }
-    LOGGER.error(
-        "HELP\n\n\n\n\n"
-    )
-    LOGGER.error(ledgers)
-    LOGGER.error(NAMESPACE)
+    } if ledgers else {}
 
-    # TODO Add more dynamic support for more networks
     ledgers = Ledgers(ledgers)
     context.injector.bind_instance(Ledgers, ledgers)
 
@@ -100,9 +86,7 @@ async def setup(context: InjectionContext):
     # Registrar
     context.injector.bind_instance(
         IndyRegistrar,
-        IndyRegistrar(
-            context.settings,
-        ),
+        IndyRegistrar(),
     )
 
     # Registry
