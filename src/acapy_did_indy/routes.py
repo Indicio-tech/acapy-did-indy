@@ -216,13 +216,14 @@ async def get_taa(request: web.Request):
     """Route for retrieving TAA for a specific namespace."""
 
     context: AdminRequestContext = request["context"]
-    registry = context.inject(IndyRegistry)
 
     body = await request.json()
     namespace = body.get("namespace")
 
     try:
-        taa_info: TAAInfo = await registry.get_taa(context.profile, namespace)
+        async with context.session() as session:
+            registry = session.inject(IndyRegistry)
+            taa_info: TAAInfo = await registry.get_taa(context.profile, namespace)
 
         if taa_info.taa is None:
             raise web.HTTPNotFound(reason="No TAA found for the specified namespace")
