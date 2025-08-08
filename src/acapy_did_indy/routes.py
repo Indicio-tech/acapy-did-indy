@@ -67,6 +67,7 @@ class CreateDIDResponseSchema(OpenAPISchema):
 )
 @request_schema(CreateDIDIndyRequestSchema())
 @response_schema(CreateDIDResponseSchema())
+@tenant_authentication
 async def create_new_did_indy(request: web.Request):
     """Route for creating a version 2 did for did:indy."""
 
@@ -113,6 +114,7 @@ async def create_new_did_indy(request: web.Request):
 )
 @request_schema(CreateDIDIndyRequestSchema())
 @response_schema(CreateDIDResponseSchema())
+@tenant_authentication
 async def create_did_indy(request: web.Request):
     """Route for creating a did:indy."""
 
@@ -174,6 +176,7 @@ class GetNamespacesResponseSchema(OpenAPISchema):
     summary="Get available namespaces (ledgers).",
 )
 @response_schema(GetNamespacesResponseSchema())
+@tenant_authentication
 async def get_namespaces(request: web.Request):
     """Route for retrieving available namespaces (ledgers)."""
 
@@ -219,6 +222,7 @@ class TAAResponseSchema(OpenAPISchema):
 )
 @request_schema(GetTAARequestSchema())
 @response_schema(TAAResponseSchema())
+@tenant_authentication
 async def get_taa(request: web.Request):
     """Route for retrieving TAA for a specific namespace."""
 
@@ -291,6 +295,7 @@ class AcceptTAAResponseSchema(OpenAPISchema):
 )
 @request_schema(AcceptTAARequestSchema())
 @response_schema(AcceptTAAResponseSchema())
+@tenant_authentication
 async def accept_taa(request: web.Request):
     """Route for accepting a TAA."""
 
@@ -359,6 +364,7 @@ class ListTAAAcceptancesResponseSchema(OpenAPISchema):
     summary="List all accepted Transaction Author Agreements.",
 )
 @response_schema(ListTAAAcceptancesResponseSchema())
+@tenant_authentication
 async def list_taa_acceptances(request: web.Request):
     """Route for listing all accepted TAAs."""
 
