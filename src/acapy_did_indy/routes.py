@@ -71,7 +71,6 @@ async def create_new_did_indy(request: web.Request):
     """Route for creating a version 2 did for did:indy."""
 
     context: AdminRequestContext = request["context"]
-    registrar = context.inject(IndyRegistrar)
 
     body = await request.json()
     ldp_vc = body.get("ldp_vc", False)
@@ -92,12 +91,14 @@ async def create_new_did_indy(request: web.Request):
         raise web.HTTPNotFound(reason=f"No mediation record with id {mediation_id}")
 
     try:
-        did_info = await registrar.create_new_nym(
-            context.profile,
-            didcomm=didcomm,
-            ldp_vc=ldp_vc,
-            mediation_records=[mediation_record] if mediation_record else None,
-        )
+        async with context.session() as session:
+            registrar = session.inject(IndyRegistrar)
+            did_info = await registrar.create_new_nym(
+                context.profile,
+                didcomm=didcomm,
+                ldp_vc=ldp_vc,
+                mediation_records=[mediation_record] if mediation_record else None,
+            )
     except Exception as e:
         raise web.HTTPInternalServerError(reason=f"Could not create did:indy with new nym: {str(e)}")
 
@@ -114,7 +115,6 @@ async def create_did_indy(request: web.Request):
     """Route for creating a did:indy."""
 
     context: AdminRequestContext = request["context"]
-    registrar = context.inject(IndyRegistrar)
 
     body = await request.json()
     nym = body.get("nym")
@@ -136,13 +136,15 @@ async def create_did_indy(request: web.Request):
         raise web.HTTPNotFound(reason=f"No mediation record with id {mediation_id}")
 
     try:
-        did_info = await registrar.from_public_nym(
-            context.profile,
-            nym,
-            didcomm=didcomm,
-            ldp_vc=ldp_vc,
-            mediation_records=[mediation_record] if mediation_record else None,
-        )
+        async with context.session() as session:
+            registrar = session.inject(IndyRegistrar)
+            did_info = await registrar.from_public_nym(
+                context.profile,
+                nym,
+                didcomm=didcomm,
+                ldp_vc=ldp_vc,
+                mediation_records=[mediation_record] if mediation_record else None,
+            )
     except Exception:
         raise web.HTTPInternalServerError(
             reason="Could not create did:indy from public nym"
@@ -172,10 +174,11 @@ async def get_namespaces(request: web.Request):
     """Route for retrieving available namespaces (ledgers)."""
 
     context: AdminRequestContext = request["context"]
-    registry = context.inject(IndyRegistry)
 
     try:
-        namespaces = await registry.get_namespaces(context.profile)
+        async with context.session() as session:
+            registry = session.inject(IndyRegistry)
+            namespaces = await registry.get_namespaces(context.profile)
     except Exception as e:
         raise web.HTTPInternalServerError(
             reason=f"Could not retrieve namespaces: {str(e)}"
@@ -288,14 +291,15 @@ async def accept_taa(request: web.Request):
     """Route for accepting a TAA."""
 
     context: AdminRequestContext = request["context"]
-    registry = context.inject(IndyRegistry)
 
     body = await request.json()
     taa_info = body.get("taa_info")
     mechanism = body.get("mechanism")
 
     try:
-        taa_acceptance = await registry.accept_taa(context.profile, taa_info, mechanism)
+        async with context.session() as session:
+            registry = session.inject(IndyRegistry)
+            taa_acceptance = await registry.accept_taa(context.profile, taa_info, mechanism)
         if not isinstance(taa_acceptance, TaaAcceptance):
             raise web.HTTPInternalServerError(reason="Invalid TAA acceptance response")
         if not isinstance(taa_info, dict):
