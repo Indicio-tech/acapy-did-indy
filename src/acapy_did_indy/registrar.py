@@ -38,7 +38,6 @@ class IndyRegistrar:
 
     def __init__(
         self,
-        # settings: Settings,
     ):
         """Initialize the registrar."""
         LOGGER.info("DID:Indy Initializing did:indy registrar")
