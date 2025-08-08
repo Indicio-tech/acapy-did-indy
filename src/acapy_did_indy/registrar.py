@@ -42,15 +42,6 @@ class IndyRegistrar:
     ):
         """Initialize the registrar."""
         LOGGER.info("DID:Indy Initializing did:indy registrar")
-        # config = settings.for_plugin("acapy_did_indy")
-        # namespace = config.get("indy_namespace")
-
-        # if not namespace:
-        #     raise IndyRegistrarError(
-        #         "Namespace is not configured; cannot init registrar"
-        #     )
-
-        # self.namespace = namespace
 
     async def prepare_didcomm_services(
         self, profile: Profile, mediation_records: List[MediationRecord] | None = None
