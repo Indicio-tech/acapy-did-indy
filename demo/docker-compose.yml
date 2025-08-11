@@ -100,7 +100,7 @@ services:
 
   driver:
     platform: linux/amd64
-    image: driver-did-indy
+    image: ghcr.io/indicio-tech/did-indy-py:py3.12-nightly
     ports:
       - "8080:80"
     volumes:
