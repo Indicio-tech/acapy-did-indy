@@ -4,6 +4,7 @@ import logging
 from aiohttp import web
 from aiohttp_apispec import docs, request_schema, response_schema
 from acapy_agent.admin.request_context import AdminRequestContext
+from acapy_agent.admin.decorators.auth import tenant_authentication
 from acapy_agent.messaging.models.openapi import OpenAPISchema
 from acapy_agent.protocols.coordinate_mediation.v1_0.route_manager import (
     RouteManager,

@@ -6,7 +6,7 @@ authors = [
     {name = "Daniel Bluhm", email = "dbluhm@pm.me"},
 ]
 dependencies = [
-    "did-indy-py[client,demo,driver] @ git+https://github.com/Indicio-tech/did-indy-py.git@49728cfcd7e4dffa15e6611912ff070f964b8223",
+    "did-indy-py[client,demo,driver] @ git+https://github.com/Indicio-tech/did-indy-py.git@a4e3d85ef878401ad320707ef621ea9cac28796d",
     "pytest>=8.4.0"
 ]
 requires-python = ">=3.12"

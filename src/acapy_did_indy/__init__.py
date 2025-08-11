@@ -14,6 +14,7 @@ from did_indy.client.client import IndyDriverClient
 from did_indy.driver.ledgers import Ledgers
 from did_indy.ledger import LedgerPool, fetch_genesis_transactions
 from did_indy.resolver import Resolver as DidIndyACResolver
+from did_indy.driver.api.namespaces import NamespaceInfo
 
 from .author import AcapyAuthorDeps
 from .did import INDY
@@ -53,17 +54,77 @@ async def setup(context: InjectionContext):
     client = IndyDriverClient(DRIVER, client_api_key=API_KEY)
     context.injector.bind_instance(IndyDriverClient, client)
 
-    ledgers = plugin_settings.get("ledgers")
-    ledgers = {
-        namespace: LedgerPool(
-            name=namespace,
-            genesis_transactions=await fetch_genesis_transactions(ledgers[namespace]),
-            cache=BasicCache(),
-        )
-        for namespace in ledgers.keys()
-    } if ledgers else {}
+    use_ledgers_from_driver = plugin_settings.get("ledgers_from_driver", True)
+    LOGGER.debug("Fetching ledgers from did-indy driver...")
+    
+    # Try to communicate with the driver.
+    try:
+        driver_ledgers = [
+            NamespaceInfo.model_validate(namespace_info)
+            for namespace_info in await client.get_namespaces()
+        ]
+
+        driver_ledgers = {
+            namespace.namespace: LedgerPool(
+                name=namespace.namespace,
+                genesis_transactions=namespace.genesis_transaction,
+                cache=BasicCache()
+            )
+            for namespace in driver_ledgers
+        }
+    except Exception as e:
+        if use_ledgers_from_driver:
+            LOGGER.error(f"Could not fetch namespaces from driver: {e}. Since `ledgers_from_driver` is true, cannot complete setup.")
+            return
+        else:
+            LOGGER.warning(f"Could not fetch namespaces from driver: {e}. Since `ledgers_from_driver` is false, using namespaces from acapy-did-indy plugin.")
+            LOGGER.warning("ACA-Py can only support DID resolution.")
+            driver_ledgers = None
+    
+    if use_ledgers_from_driver:
+        assert driver_ledgers is not None
+        ledgers = driver_ledgers
+    else:
+        # Load the ledger information from the plugin.
+        ledgers = plugin_settings.get("ledgers")
+        if ledgers is None:
+            LOGGER.error(
+                "`ledgers_from_driver` is false, but no ledger was specified in the plugin configuration."
+            )
+            return
+
+        if driver_ledgers is not None:
+            plugin_namespaces = ledgers.keys()
+            driver_namespaces = driver_ledgers.keys()
+            namespace_diff = plugin_namespaces ^ driver_namespaces
+
+            # If we are able to contact the driver, and the driver and plugin have a 
+            # different configuration, we use the driver's
+            if namespace_diff:
+                LOGGER.warning(
+                    f"""\
+The plugin and the did-indy driver use different namespaces. Using the driver's configuration.
+    The plugin has namespaces: {list(plugin_namespaces)}
+    The driver has namespaces: {list(driver_namespaces)}\
+"""
+                )
+                ledgers = driver_ledgers
+        else:
+            # We only use the plugin configuration if:
+            #   1. `ledgers_from_driver` is False
+            #   2. We are unable to contact the driver.
+            # In this case, we are only able to support DID resolution.
+            ledgers = {
+                namespace: LedgerPool(
+                    name=namespace,
+                    genesis_transactions=await fetch_genesis_transactions(ledgers[namespace]),
+                    cache=BasicCache(),
+                )
+                for namespace in ledgers.keys()
+            } if ledgers else {}
 
     ledgers = Ledgers(ledgers)
+    LOGGER.debug("Using namespaces %s", list(ledgers.ledgers.keys()))
     context.injector.bind_instance(Ledgers, ledgers)
 
     context.injector.bind_provider(
