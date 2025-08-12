@@ -49,8 +49,8 @@ class AcapyAuthorDeps(AuthorDependencies):
         """Get the ledger pool for a namespace."""
         ledgers = self.session.inject(Ledgers)
         pool = ledgers.get(namespace)
-        if not pool:
-            raise Exception("Insert good exception details here")
+        if not pool or not isinstance(pool, LedgerPool):
+            raise Exception("Invalid pool for namespace " + namespace)
         return pool
 
     async def get_taa(self, namespace: str) -> Optional[TaaAcceptance]:
@@ -69,6 +69,7 @@ class AcapyAuthorDeps(AuthorDependencies):
         # Check cache
         cached_taa_acceptance = await self.taa_cache.get(namespace)
         if cached_taa_acceptance is not None:
+            LOGGER.debug(f"Retrieved cached TAA for namespace {namespace}: {cached_taa_acceptance}")
             return cached_taa_acceptance
 
         # Retrieve the TAA from storage
