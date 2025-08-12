@@ -75,7 +75,7 @@ async def create_new_did_indy(request: web.Request):
     context: AdminRequestContext = request["context"]
 
     body = await request.json()
-    namespace = body.get("namespace", "indicio:test")
+    namespace = body.get("namespace")
     ldp_vc = body.get("ldp_vc", False)
     didcomm = body.get("didcomm", True)
     mediation_id = body.get("mediation_id")
@@ -122,7 +122,7 @@ async def create_did_indy(request: web.Request):
     context: AdminRequestContext = request["context"]
 
     body = await request.json()
-    namespace = body.get("namespace", "indicio:test")
+    namespace = body.get("namespace")
     nym = body.get("nym")
     ldp_vc = body.get("ldp_vc", False)
     didcomm = body.get("didcomm", True)
