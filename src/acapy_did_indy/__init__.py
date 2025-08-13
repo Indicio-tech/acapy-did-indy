@@ -33,13 +33,6 @@ async def setup(context: InjectionContext):
     if not registry:
         LOGGER.error("No AnonCredsRegistry instance found in context!!!")
         return
-    methods = context.inject(DIDMethods)
-    methods.register(INDY)
-
-    indy_resolver = IndyResolver()
-    await indy_resolver.setup(context)
-    resolver = context.inject(DIDResolver)
-    resolver.register_resolver(indy_resolver)
 
     API_KEY = plugin_settings.get("api_key")
     if API_KEY is None:
@@ -145,6 +138,21 @@ The plugin and did-indy driver use different namespaces. Using the driver's conf
         ),
     )
 
+    methods = context.inject(DIDMethods)
+    methods.register(INDY)
+
+    # Register the resolver, registrar, and registry.
+    # This happens after the ledger setup, since IndyResolver, IndyRegistrar, and 
+    # IndyRegistry need information about the ledgers for setup. 
+
+    # Resolver
+    indy_resolver = IndyResolver()
+    await indy_resolver.setup(context)
+    context.injector.bind_instance(
+        IndyResolver,
+        indy_resolver
+    )
+
     # Registrar
     context.injector.bind_instance(
         IndyRegistrar,
@@ -154,7 +162,22 @@ The plugin and did-indy driver use different namespaces. Using the driver's conf
     # Registry
     indy_registry = IndyRegistry()
     await indy_registry.setup(context)
-    registry.register(indy_registry)
     context.injector.bind_instance(IndyRegistry, indy_registry)
 
+    # Check if the default did-indy registry has been loaded, remove it if it has.
+    # Ensure this is done immediately before updating the context to eliminiate race
+    # conditions.
+    EXAMPLE_DID_INDY = "did:indy:indicio:test:AAAAAAAAAAAAAAAAAAAAAA"
+    for existing_registrar in registry.registrars:
+        if await existing_registrar.supports(EXAMPLE_DID_INDY):
+            registry.registrars.remove(existing_registrar)
+
+    for existing_resolver in registry.resolvers:
+        if await existing_resolver.supports(EXAMPLE_DID_INDY):
+            registry.resolvers.remove(existing_resolver)
+
+    resolver = context.inject(DIDResolver)
+    resolver.register_resolver(indy_resolver)
+    registry.register(indy_registry)
+    
     LOGGER.debug("acapy_did_indy plugin setup complete")

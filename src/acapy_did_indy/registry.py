@@ -3,7 +3,6 @@
 import logging
 import re
 from typing import Optional, Pattern, Sequence
-from uuid import uuid4
 
 from acapy_agent.anoncreds.base import BaseAnonCredsRegistrar, BaseAnonCredsResolver
 from acapy_agent.anoncreds.models.credential_definition import (
