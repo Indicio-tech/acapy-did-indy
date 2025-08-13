@@ -168,6 +168,8 @@ The plugin and did-indy driver use different namespaces. Using the driver's conf
     # Ensure this is done immediately before updating the context to eliminiate race
     # conditions.
     EXAMPLE_DID_INDY = "did:indy:indicio:test:AAAAAAAAAAAAAAAAAAAAAA"
+
+    # TODO: are race conditions still possible due to the fact that .supports() is async?
     for existing_registrar in registry.registrars:
         if await existing_registrar.supports(EXAMPLE_DID_INDY):
             registry.registrars.remove(existing_registrar)
