@@ -2,9 +2,8 @@
 
 import logging
 import re
-from typing import Dict, Optional, Pattern, Sequence, Text
+from typing import Optional, Pattern, Sequence, Text
 from acapy_agent.config.injection_context import InjectionContext
-from acapy_agent.config.ledger import fetch_genesis_transactions
 from acapy_agent.core.profile import Profile
 from acapy_agent.messaging.valid import B58
 from acapy_agent.resolver.base import (

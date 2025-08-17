@@ -4,6 +4,7 @@ import logging
 
 from acapy_agent.anoncreds.registry import AnonCredsRegistry
 from acapy_agent.config.injection_context import InjectionContext
+from acapy_agent.config.plugin_settings import PluginSettings
 from acapy_agent.config.provider import ClassProvider
 from acapy_agent.core.profile import ProfileSession
 from acapy_agent.resolver.did_resolver import DIDResolver
@@ -24,29 +25,10 @@ from .resolver import IndyResolver
 
 LOGGER = logging.getLogger(__name__)
 
+class LedgerError(BaseException):
+    ...
 
-async def setup(context: InjectionContext):
-    LOGGER.debug("Starting setup for acapy_did_indy plugin")
-    plugin_settings = context.settings.for_plugin("acapy_did_indy")
-
-    registry = context.inject_or(AnonCredsRegistry)
-    if not registry:
-        LOGGER.error("No AnonCredsRegistry instance found in context!!!")
-        return
-
-    API_KEY = plugin_settings.get("api_key")
-    if API_KEY is None:
-        LOGGER.error(
-            "No API key found. Please provide an API key using the `api_key` ACA-py plugin variable."
-        )
-        return
-
-    DRIVER = plugin_settings.get("driver_uri", "http://driver")
-    LOGGER.debug("Using driver endpoint " + DRIVER)
-
-    client = IndyDriverClient(DRIVER, client_api_key=API_KEY)
-    context.injector.bind_instance(IndyDriverClient, client)
-
+async def get_ledgers(plugin_settings: PluginSettings, client: IndyDriverClient) -> Ledgers:
     use_ledgers_from_driver = plugin_settings.get("ledgers_from_driver", True)
     LOGGER.debug("Fetching ledgers from did-indy driver...")
     
@@ -67,8 +49,9 @@ async def setup(context: InjectionContext):
         }
     except Exception as e:
         if use_ledgers_from_driver:
-            LOGGER.error(f"Could not fetch namespaces from driver: {e}. Since `ledgers_from_driver` is true, cannot complete setup.")
-            return
+            raise LedgerError(
+                "Could not fetch namespaces from driver. Since `ledgers_from_driver` is true, cannot complete setup."
+            ) from e
         else:
             LOGGER.warning(f"Could not fetch namespaces from driver: {e}. Since `ledgers_from_driver` is false, using namespaces from acapy-did-indy plugin.")
             LOGGER.warning("ACA-Py can only support did-indy resolution.")
@@ -81,10 +64,9 @@ async def setup(context: InjectionContext):
         # Load the ledger information from the plugin.
         plugin_ledgers = plugin_settings.get("ledgers")
         if plugin_ledgers is None:
-            LOGGER.error(
+            raise LedgerError(
                 "`ledgers_from_driver` is false, but no ledger was specified in the plugin configuration."
             )
-            return
 
         if driver_ledgers is not None:
             plugin_namespaces = plugin_ledgers.keys()
@@ -116,8 +98,37 @@ The plugin and did-indy driver use different namespaces. Using the driver's conf
                 )
                 for namespace, genesis_url in plugin_ledgers.items()
             }
+    
+    return Ledgers(ledgers)
 
-    ledgers = Ledgers(ledgers)
+async def setup(context: InjectionContext):
+    LOGGER.debug("Starting setup for acapy_did_indy plugin")
+    plugin_settings = context.settings.for_plugin("acapy_did_indy")
+
+    registry = context.inject_or(AnonCredsRegistry)
+    if not registry:
+        LOGGER.error("No AnonCredsRegistry instance found in context!!!")
+        return
+
+    API_KEY = plugin_settings.get("api_key")
+    if API_KEY is None:
+        LOGGER.error(
+            "No API key found. Please provide an API key using the `api_key` ACA-py plugin variable."
+        )
+        return
+
+    DRIVER = plugin_settings.get("driver_uri", "http://driver")
+    LOGGER.debug("Using driver endpoint " + DRIVER)
+
+    client = IndyDriverClient(DRIVER, client_api_key=API_KEY)
+    context.injector.bind_instance(IndyDriverClient, client)
+
+    try:
+        ledgers = await get_ledgers(plugin_settings, client)
+    except LedgerError as e:
+        LOGGER.error(f"Ledger setup failed: {e}.")
+        return
+    
     LOGGER.debug("Using namespaces %s", list(ledgers.ledgers.keys()))
     context.injector.bind_instance(Ledgers, ledgers)
 
@@ -167,9 +178,10 @@ The plugin and did-indy driver use different namespaces. Using the driver's conf
     # Check if the default did-indy registry has been loaded, remove it if it has.
     # Ensure this is done immediately before updating the context to eliminiate race
     # conditions.
+
+    # TODO: this is a temporary fix, while we await changes in ACA-Py
     EXAMPLE_DID_INDY = "did:indy:indicio:test:AAAAAAAAAAAAAAAAAAAAAA"
 
-    # TODO: are race conditions still possible due to the fact that .supports() is async?
     for existing_registrar in registry.registrars:
         if await existing_registrar.supports(EXAMPLE_DID_INDY):
             registry.registrars.remove(existing_registrar)
