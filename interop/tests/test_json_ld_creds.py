@@ -293,12 +293,7 @@ async def issued_cred(
         "id": holder_did,
     }
     yield await jsonld_issue_credential(
-        controller,
-        credo,
-        conn.connection_id,
-        credential,
-        preview,
-        options
+        controller, credo, conn.connection_id, credential, preview, options
     )
 
 
@@ -358,7 +353,10 @@ async def jsonld_present_proof(
 
 @pytest.mark.asyncio
 async def test_present(
-    credo: CredoWrapper, controller: Controller, conn: ConnRecord, issued_cred: V20CredExRecord
+    credo: CredoWrapper,
+    controller: Controller,
+    conn: ConnRecord,
+    issued_cred: V20CredExRecord,
 ):
     """Test a presentation."""
     definition = {

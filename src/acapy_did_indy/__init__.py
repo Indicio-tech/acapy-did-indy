@@ -25,13 +25,16 @@ from .resolver import IndyResolver
 
 LOGGER = logging.getLogger(__name__)
 
-class LedgerError(BaseException):
-    ...
 
-async def get_ledgers(plugin_settings: PluginSettings, client: IndyDriverClient) -> Ledgers:
+class LedgerError(BaseException): ...
+
+
+async def get_ledgers(
+    plugin_settings: PluginSettings, client: IndyDriverClient
+) -> Ledgers:
     use_ledgers_from_driver = plugin_settings.get("ledgers_from_driver", True)
     LOGGER.debug("Fetching ledgers from did-indy driver...")
-    
+
     # Try to communicate with the driver.
     try:
         driver_ledgers = [
@@ -43,7 +46,7 @@ async def get_ledgers(plugin_settings: PluginSettings, client: IndyDriverClient)
             namespace.namespace: LedgerPool(
                 name=namespace.namespace,
                 genesis_transactions=namespace.genesis_transaction,
-                cache=BasicCache()
+                cache=BasicCache(),
             )
             for namespace in driver_ledgers
         }
@@ -53,10 +56,12 @@ async def get_ledgers(plugin_settings: PluginSettings, client: IndyDriverClient)
                 "Could not fetch namespaces from driver. Since `ledgers_from_driver` is true, cannot complete setup."
             ) from e
         else:
-            LOGGER.warning(f"Could not fetch namespaces from driver: {e}. Since `ledgers_from_driver` is false, using namespaces from acapy-did-indy plugin.")
+            LOGGER.warning(
+                f"Could not fetch namespaces from driver: {e}. Since `ledgers_from_driver` is false, using namespaces from acapy-did-indy plugin."
+            )
             LOGGER.warning("ACA-Py can only support did-indy resolution.")
             driver_ledgers = None
-    
+
     if use_ledgers_from_driver:
         assert driver_ledgers is not None
         ledgers = driver_ledgers
@@ -73,7 +78,7 @@ async def get_ledgers(plugin_settings: PluginSettings, client: IndyDriverClient)
             driver_namespaces = driver_ledgers.keys()
             namespace_diff = plugin_namespaces ^ driver_namespaces
 
-            # If we are able to contact the driver, and the driver and plugin have a 
+            # If we are able to contact the driver, and the driver and plugin have a
             # different configuration, we use the driver's
             if namespace_diff:
                 LOGGER.warning(
@@ -83,7 +88,7 @@ The plugin and did-indy driver use different namespaces. Using the driver's conf
     The driver has namespaces: {list(driver_namespaces)}\
 """
                 )
-            
+
             ledgers = driver_ledgers
         else:
             # We only use the plugin configuration if:
@@ -98,8 +103,9 @@ The plugin and did-indy driver use different namespaces. Using the driver's conf
                 )
                 for namespace, genesis_url in plugin_ledgers.items()
             }
-    
+
     return Ledgers(ledgers)
+
 
 async def setup(context: InjectionContext):
     LOGGER.debug("Starting setup for acapy_did_indy plugin")
@@ -128,7 +134,7 @@ async def setup(context: InjectionContext):
     except LedgerError as e:
         LOGGER.error(f"Ledger setup failed: {e}.")
         return
-    
+
     LOGGER.debug("Using namespaces %s", list(ledgers.ledgers.keys()))
     context.injector.bind_instance(Ledgers, ledgers)
 
@@ -153,16 +159,13 @@ async def setup(context: InjectionContext):
     methods.register(INDY)
 
     # Register the resolver, registrar, and registry.
-    # This happens after the ledger setup, since IndyResolver, IndyRegistrar, and 
-    # IndyRegistry need information about the ledgers for setup. 
+    # This happens after the ledger setup, since IndyResolver, IndyRegistrar, and
+    # IndyRegistry need information about the ledgers for setup.
 
     # Resolver
     indy_resolver = IndyResolver()
     await indy_resolver.setup(context)
-    context.injector.bind_instance(
-        IndyResolver,
-        indy_resolver
-    )
+    context.injector.bind_instance(IndyResolver, indy_resolver)
 
     # Registrar
     context.injector.bind_instance(
@@ -193,5 +196,5 @@ async def setup(context: InjectionContext):
     resolver = context.inject(DIDResolver)
     resolver.register_resolver(indy_resolver)
     registry.register(indy_registry)
-    
+
     LOGGER.debug("acapy_did_indy plugin setup complete")

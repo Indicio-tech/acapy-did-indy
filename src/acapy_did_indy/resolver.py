@@ -46,9 +46,7 @@ class IndyResolver(BaseDIDResolver):
         elif ledgers:
             resolver = Resolver(
                 pool_map={
-                    name: await open_pool(
-                        transactions=ledger_pool.genesis_txns
-                    )
+                    name: await open_pool(transactions=ledger_pool.genesis_txns)
                     for name, ledger_pool in ledgers.ledgers.items()
                 }
             )

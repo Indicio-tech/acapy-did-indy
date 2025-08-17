@@ -104,7 +104,9 @@ async def create_new_did_indy(request: web.Request):
                 mediation_records=[mediation_record] if mediation_record else None,
             )
     except Exception as e:
-        raise web.HTTPInternalServerError(reason=f"Could not create did:indy with new nym: {str(e)}")
+        raise web.HTTPInternalServerError(
+            reason=f"Could not create did:indy with new nym: {str(e)}"
+        )
 
     return web.json_response({"did": did_info.did})
 
@@ -309,7 +311,9 @@ async def accept_taa(request: web.Request):
     try:
         async with context.session() as session:
             registry = session.inject(IndyRegistry)
-            taa_acceptance = await registry.accept_taa(context.profile, taa_info, mechanism)
+            taa_acceptance = await registry.accept_taa(
+                context.profile, taa_info, mechanism
+            )
         if not isinstance(taa_acceptance, TaaAcceptance):
             raise web.HTTPInternalServerError(reason="Invalid TAA acceptance response")
         if not isinstance(taa_info, dict):
