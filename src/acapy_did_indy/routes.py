@@ -4,6 +4,7 @@ import logging
 from aiohttp import web
 from aiohttp_apispec import docs, request_schema, response_schema
 from acapy_agent.admin.request_context import AdminRequestContext
+from acapy_agent.admin.decorators.auth import tenant_authentication
 from acapy_agent.messaging.models.openapi import OpenAPISchema
 from acapy_agent.protocols.coordinate_mediation.v1_0.route_manager import (
     RouteManager,
@@ -67,12 +68,14 @@ class CreateDIDResponseSchema(OpenAPISchema):
 )
 @request_schema(CreateDIDIndyRequestSchema())
 @response_schema(CreateDIDResponseSchema())
+@tenant_authentication
 async def create_new_did_indy(request: web.Request):
     """Route for creating a version 2 did for did:indy."""
 
     context: AdminRequestContext = request["context"]
 
     body = await request.json()
+    namespace = body.get("namespace")
     ldp_vc = body.get("ldp_vc", False)
     didcomm = body.get("didcomm", True)
     mediation_id = body.get("mediation_id")
@@ -95,12 +98,15 @@ async def create_new_did_indy(request: web.Request):
             registrar = session.inject(IndyRegistrar)
             did_info = await registrar.create_new_nym(
                 context.profile,
+                namespace=namespace,
                 didcomm=didcomm,
                 ldp_vc=ldp_vc,
                 mediation_records=[mediation_record] if mediation_record else None,
             )
     except Exception as e:
-        raise web.HTTPInternalServerError(reason=f"Could not create did:indy with new nym: {str(e)}")
+        raise web.HTTPInternalServerError(
+            reason=f"Could not create did:indy with new nym: {str(e)}"
+        )
 
     return web.json_response({"did": did_info.did})
 
@@ -111,12 +117,14 @@ async def create_new_did_indy(request: web.Request):
 )
 @request_schema(CreateDIDIndyRequestSchema())
 @response_schema(CreateDIDResponseSchema())
+@tenant_authentication
 async def create_did_indy(request: web.Request):
     """Route for creating a did:indy."""
 
     context: AdminRequestContext = request["context"]
 
     body = await request.json()
+    namespace = body.get("namespace")
     nym = body.get("nym")
     ldp_vc = body.get("ldp_vc", False)
     didcomm = body.get("didcomm", True)
@@ -140,6 +148,7 @@ async def create_did_indy(request: web.Request):
             registrar = session.inject(IndyRegistrar)
             did_info = await registrar.from_public_nym(
                 context.profile,
+                namespace,
                 nym,
                 didcomm=didcomm,
                 ldp_vc=ldp_vc,
@@ -170,6 +179,7 @@ class GetNamespacesResponseSchema(OpenAPISchema):
     summary="Get available namespaces (ledgers).",
 )
 @response_schema(GetNamespacesResponseSchema())
+@tenant_authentication
 async def get_namespaces(request: web.Request):
     """Route for retrieving available namespaces (ledgers)."""
 
@@ -215,6 +225,7 @@ class TAAResponseSchema(OpenAPISchema):
 )
 @request_schema(GetTAARequestSchema())
 @response_schema(TAAResponseSchema())
+@tenant_authentication
 async def get_taa(request: web.Request):
     """Route for retrieving TAA for a specific namespace."""
 
@@ -287,6 +298,7 @@ class AcceptTAAResponseSchema(OpenAPISchema):
 )
 @request_schema(AcceptTAARequestSchema())
 @response_schema(AcceptTAAResponseSchema())
+@tenant_authentication
 async def accept_taa(request: web.Request):
     """Route for accepting a TAA."""
 
@@ -299,7 +311,9 @@ async def accept_taa(request: web.Request):
     try:
         async with context.session() as session:
             registry = session.inject(IndyRegistry)
-            taa_acceptance = await registry.accept_taa(context.profile, taa_info, mechanism)
+            taa_acceptance = await registry.accept_taa(
+                context.profile, taa_info, mechanism
+            )
         if not isinstance(taa_acceptance, TaaAcceptance):
             raise web.HTTPInternalServerError(reason="Invalid TAA acceptance response")
         if not isinstance(taa_info, dict):
@@ -355,6 +369,7 @@ class ListTAAAcceptancesResponseSchema(OpenAPISchema):
     summary="List all accepted Transaction Author Agreements.",
 )
 @response_schema(ListTAAAcceptancesResponseSchema())
+@tenant_authentication
 async def list_taa_acceptances(request: web.Request):
     """Route for listing all accepted TAAs."""
 

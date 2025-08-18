@@ -6,6 +6,7 @@ from typing import Optional
 from acapy_agent.core.error import BaseError
 from acapy_agent.core.profile import ProfileSession
 from acapy_agent.wallet.base import BaseWallet
+
 from did_indy.author.author import AuthorDependencies
 from did_indy.driver.ledgers import Ledgers
 from did_indy.ledger import LedgerPool, TaaAcceptance
@@ -14,6 +15,7 @@ from did_indy.signer import Signer
 from .taa_storage import get_taa_acceptance
 
 LOGGER = logging.getLogger(__name__)
+CACHE_TTL = 3600
 
 
 class IndyRegistryError(BaseError):
@@ -46,8 +48,8 @@ class AcapyAuthorDeps(AuthorDependencies):
         """Get the ledger pool for a namespace."""
         ledgers = self.session.inject(Ledgers)
         pool = ledgers.get(namespace)
-        if not pool:
-            raise Exception("Insert good exception details here")
+        if not pool or not isinstance(pool, LedgerPool):
+            raise Exception("Invalid pool for namespace " + namespace)
         return pool
 
     async def get_taa(self, namespace: str) -> Optional[TaaAcceptance]:
@@ -59,15 +61,35 @@ class AcapyAuthorDeps(AuthorDependencies):
         Returns:
             The TAA acceptance record if found, None otherwise
         """
-        if namespace is None:
-            # Use the pool's namespace
-            namespace = self._pool.name
+        ledgers = self.session.inject(Ledgers)
+        pool = ledgers.get(namespace)
+
+        wallet_id = self.session.settings.get("wallet_id")
+        cache_key = f"{namespace}_taa_cache::{wallet_id}"
+
+        # Check cache
+        cached_taa_acceptance = await pool.cache.get(cache_key)
+        if cached_taa_acceptance is not None:
+            LOGGER.debug(
+                f"Retrieved cached TAA for namespace {namespace}: {cached_taa_acceptance}"
+            )
+            return cached_taa_acceptance
 
         # Retrieve the TAA from storage
         taa_record = await get_taa_acceptance(self.session, namespace)
         LOGGER.debug(f"Retrieved TAA for namespace {namespace}: {taa_record}")
-        return TaaAcceptance(
-            taaDigest=taa_record.digest,
-            mechanism=taa_record.mechanism,
-            time=taa_record.accepted_at
-        ) if taa_record else None
+
+        taa_acceptance = (
+            TaaAcceptance(
+                taaDigest=taa_record.digest,
+                mechanism=taa_record.mechanism,
+                time=taa_record.accepted_at,
+            )
+            if taa_record
+            else None
+        )
+
+        if taa_acceptance is not None:
+            await pool.cache.set(cache_key, taa_acceptance, ttl=CACHE_TTL)
+            
+        return taa_acceptance

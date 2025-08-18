@@ -2,9 +2,8 @@
 
 import logging
 import re
-from typing import Dict, Optional, Pattern, Sequence, Text
+from typing import Optional, Pattern, Sequence, Text
 from acapy_agent.config.injection_context import InjectionContext
-from acapy_agent.config.ledger import fetch_genesis_transactions
 from acapy_agent.core.profile import Profile
 from acapy_agent.messaging.valid import B58
 from acapy_agent.resolver.base import (
@@ -14,6 +13,8 @@ from acapy_agent.resolver.base import (
     ResolverType,
 )
 from indy_vdr import Resolver, VdrError, VdrErrorCode, open_pool
+
+from did_indy.driver.ledgers import Ledgers
 
 LOGGER = logging.getLogger(__name__)
 
@@ -39,16 +40,14 @@ class IndyResolver(BaseDIDResolver):
         """Perform required setup for Indy DID resolution."""
         settings = context.settings.for_plugin("acapy_did_indy")
         auto = settings.get_bool("auto_ledger")
-        ledgers: Dict[str, str] | None = settings.get("ledgers")
+        ledgers = context.inject(Ledgers)
         if auto:
             resolver = Resolver(autopilot=True)
         elif ledgers:
             resolver = Resolver(
                 pool_map={
-                    name: await open_pool(
-                        transactions=await fetch_genesis_transactions(genesis_url)
-                    )
-                    for name, genesis_url in ledgers.items()
+                    name: await open_pool(transactions=ledger_pool.genesis_txns)
+                    for name, ledger_pool in ledgers.ledgers.items()
                 }
             )
         else:
