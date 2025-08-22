@@ -29,6 +29,13 @@ LOGGER = logging.getLogger(__name__)
 class CreateDIDIndyRequestSchema(OpenAPISchema):
     """Request schema for creating a did:web."""
 
+    namespace = fields.Str(
+        required=True,
+        metadata={
+            "description": "The ledger on which to register the new DID"
+        }
+    )
+
     nym = fields.Str(
         required=False,
         metadata={
