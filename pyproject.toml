@@ -6,33 +6,29 @@ authors = [
     {name = "Daniel Bluhm", email = "dbluhm@pm.me"},
 ]
 dependencies = [
+    "did-indy-py[client,demo,driver] @ git+https://github.com/Indicio-tech/did-indy-py.git@0ed4aea1fa4ed4fe47b6672964ee9581da634d14",
+    "pytest>=8.4.0"
 ]
 requires-python = ">=3.12"
 readme = "README.md"
 license = {text = "Apache-2.0"}
 
-[project.optional-dependencies]
-acapy = [
-    "acapy-agent>=1.2.2",
-]
-did_web_server = [
-    "fastapi>=0.112.2",
-]
-demo = [
-    "acapy-controller>=0.2.0",
-]
-
 [build-system]
-requires = ["pdm-backend"]
-build-backend = "pdm.backend"
+requires = ["uv_build>=0.7.19,<0.8.0"]
+build-backend = "uv_build"
 
-
-[tool.pdm]
-distribution = true
-
-[tool.pdm.dev-dependencies]
+[dependency-groups]
 dev = [
     "fastapi[standard]>=0.112.2",
     "ruff>=0.6.3",
     "pytest>=8.3.3",
+]
+did_web_server = [
+  "fastapi>=0.112.2"
+]
+acapy = [
+  "acapy-agent>=1.2.2"
+]
+demo = [
+  "acapy-controller @ git+https://github.com/Indicio-tech/acapy-minimal-example.git@8de46d1d2cdaa7eff4a395bb389c20891c7ebc43",
 ]
